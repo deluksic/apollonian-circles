@@ -6,5 +6,5 @@ export default defineConfig({
       localsConvention: 'camelCaseOnly',
     },
   },
-  start: { ssr: false },
+  start: { ssr: false, server: { preset: 'vercel' } },
 })
