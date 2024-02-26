@@ -292,7 +292,7 @@ export function Circles() {
         preserveAspectRatio="xMidYMid meet"
         onWheel={(ev) => {
           camera.zoomKeepPointInPlace(
-            1 + ev.deltaY * 0.001,
+            1 - ev.deltaY * 0.001,
             camera.clientToWorld(ev)
           )
           ev.preventDefault()
