@@ -7,9 +7,13 @@
     "start": "vinxi start"
   },
   "dependencies": {
-    "@solidjs/start": "^0.5.9",
+    "@solidjs/start": "^0.6.0",
     "solid-js": "^1.8.15",
-    "vinxi": "^0.2.1"
+    "vinxi": "^0.3.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "typescript-plugin-css-modules": "^5.1.0"
   },
   "engines": {
     "node": ">=18"

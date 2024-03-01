@@ -76,6 +76,7 @@ export function Circles() {
 
   return (
     <>
+      <div class={ui.circleCounter}>Number of Circles: {circles.length}</div>
       <div class={ui.controls}>
         <label>
           <input
