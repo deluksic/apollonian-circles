@@ -215,7 +215,7 @@ export async function growUntilRadius(
     if (result instanceof PointerEvent) {
       return
     }
-    const nextRadius = min(maxRadius, circle.radius + 0.005 / zoom())
+    const nextRadius = min(maxRadius, circle.radius * 1.05 + 0.005 / zoom())
     const nextCenter = curve(nextRadius)
     if (!nextCenter) {
       return

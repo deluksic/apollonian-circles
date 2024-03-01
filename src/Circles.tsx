@@ -20,6 +20,7 @@ import {
   setDebug,
   twoCircleCenterline,
 } from './state'
+import { vec2Distance } from './vec2'
 
 export function Circles() {
   const [element, setElement] = createSignal<HTMLElement>()
@@ -66,6 +67,13 @@ export function Circles() {
         return
       }
       setThirdCircleIndex(third.index)
+
+      {
+        const circle = circles[index]!
+        if (vec2Distance(circle.center, xy) < circle.radius) {
+          return
+        }
+      }
 
       const result = await Promise.race([nextAnimationFrame(), stop])
       if (result instanceof PointerEvent) {
