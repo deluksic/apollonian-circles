@@ -6,6 +6,8 @@ import { struct, v2f, vec2f } from 'typegpu/data'
 import tgpu from 'typegpu/experimental'
 import { useRootContext } from './lib/RootContext'
 import { useCanvas } from './lib/CanvasContext'
+import { premultipliedAlphaBlend } from './utils/blendModes'
+import { useCamera } from './CameraContext'
 
 const Uniforms = struct({
   translation: vec2f,
@@ -20,6 +22,8 @@ export function Test(props: {
   translation: v2f
   frag: TestFrag
 }) {
+  const { positionTransform, CameraBindGroupLayout, cameraBindGroup } =
+    useCamera()
   const { root, device } = useRootContext()
   const { context } = useCanvas()
 
@@ -31,12 +35,12 @@ export function Test(props: {
   const stuff = createMemo(() => {
     const shaderCode = wgsl/* wgsl */ `
       ${{
-        Uniforms,
         VertexOutput,
         frag: props.frag,
+        positionTransform,
+        ...CameraBindGroupLayout.bound,
+        ...uniformBindGroupLayout.bound,
       }}
-
-      @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 
       @vertex fn vs(
         @builtin(vertex_index) vertexIndex : u32,
@@ -47,9 +51,11 @@ export function Test(props: {
           vec2f(-0.5, -0.5),  // bottom left
           vec2f( 0.5, -0.5),   // bottom right
         );
+        let p = pos[vertexIndex] + uniforms.translation * (2 * f32(instanceIndex) - 1);
+        let clip = positionTransform(p);
 
         var out: VertexOutput;
-        out.position = vec4f(pos[vertexIndex] + uniforms.translation * (2 * f32(instanceIndex) - 1), 0, 1);
+        out.position = vec4f(clip.xy / clip.z, 0, 1);
         out.positionOriginal = pos[vertexIndex];
         return out;
       }
@@ -67,7 +73,10 @@ export function Test(props: {
     const pipeline = device.createRenderPipeline({
       label: 'our hardcoded red triangle pipeline',
       layout: device.createPipelineLayout({
-        bindGroupLayouts: [root.unwrap(uniformBindGroupLayout)],
+        bindGroupLayouts: [
+          root.unwrap(CameraBindGroupLayout),
+          root.unwrap(uniformBindGroupLayout),
+        ],
       }),
       vertex: {
         entryPoint: 'vs',
@@ -79,18 +88,7 @@ export function Test(props: {
         targets: [
           {
             format: navigator.gpu.getPreferredCanvasFormat(),
-            blend: {
-              color: {
-                operation: 'add',
-                srcFactor: 'one',
-                dstFactor: 'one-minus-src-alpha',
-              },
-              alpha: {
-                operation: 'add',
-                srcFactor: 'one',
-                dstFactor: 'one-minus-src-alpha',
-              },
-            },
+            blend: premultipliedAlphaBlend,
           },
         ],
       },
@@ -126,7 +124,8 @@ export function Test(props: {
       ],
     })
     pass.setPipeline(pipeline)
-    pass.setBindGroup(0, root.unwrap(uniformBindGroup))
+    pass.setBindGroup(0, root.unwrap(cameraBindGroup))
+    pass.setBindGroup(1, root.unwrap(uniformBindGroup))
     pass.draw(3, 2) // call our vertex shader 3 times
     pass.end()
 

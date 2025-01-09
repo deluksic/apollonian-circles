@@ -46,7 +46,14 @@ export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
       <Show when={canvas()} keyed>
         {(canvas) => (
           <CanvasContextProvider
-            value={{ canvas, context: createContext(canvas) }}
+            value={{
+              canvas,
+              context: createContext(canvas),
+              canvasSize: () => ({
+                width: canvasSize()?.widthPX ?? 0,
+                height: canvasSize()?.heightPX ?? 0,
+              }),
+            }}
           >
             {props.children}
           </CanvasContextProvider>

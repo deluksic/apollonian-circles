@@ -3,6 +3,7 @@ import { useContextSafe } from '@/utils/useContextSafe'
 
 const CanvasContext = createContext<{
   canvas: HTMLCanvasElement
+  canvasSize: () => { width: number; height: number }
   context: GPUCanvasContext
 }>()
 
