@@ -1,26 +1,28 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "jsx": "preserve",
-    "noUncheckedIndexedAccess": true,
-    "jsxImportSource": "solid-js",
-    "allowJs": true,
-    "strict": true,
-    "noEmit": true,
-    "types": ["vinxi/client"],
+    "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "strict": true,
+    "target": "ESNext",
+    "types": ["vite/client", "@webgpu/types"],
+    "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"]
+      "@/*": ["./src/*"]
     },
     "plugins": [
       {
         "name": "typescript-plugin-css-modules",
         "options": {
-          "classnameTransform": "camelCaseOnly"
+          "classnameTransform": "camelCaseOnly",
+          "goToDefinition": true
         }
       }
     ]

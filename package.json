@@ -1,21 +1,27 @@
 {
-  "name": "circle-packed",
+  "name": "vite-template-solid",
+  "version": "0.0.0",
+  "description": "",
   "type": "module",
   "scripts": {
-    "dev": "vinxi dev",
-    "build": "vinxi build",
-    "start": "vinxi start"
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
+    "fmt": "prettier src --write"
   },
+  "license": "MIT",
   "dependencies": {
-    "@solidjs/start": "^1.0.0-rc.0",
-    "solid-js": "^1.8.16",
-    "vinxi": "^0.3.10"
+    "solid-js": "^1.9.3",
+    "typegpu": "https://pkg.csb.dev/software-mansion/TypeGPU/commit/e62d915f/typegpu",
+    "wgpu-matrix": "^3.3.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.3",
-    "typescript-plugin-css-modules": "^5.1.0"
-  },
-  "engines": {
-    "node": ">=18"
+    "@webgpu/types": "^0.1.52",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-plugin-css-modules": "^5.1.0",
+    "vite": "^6.0.7",
+    "vite-plugin-solid": "^2.11.0"
   }
 }
