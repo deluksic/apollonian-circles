@@ -1,20 +1,19 @@
 import { createEffect, createMemo } from 'solid-js'
-import { createAnimationFrame } from './utils/createAnimationFrame'
-import { TestFrag, VertexOutput } from './frags'
-import { wgsl } from './utils/wgsl'
-import { arrayOf, f32, struct, vec2f } from 'typegpu/data'
+import { createAnimationFrame } from '../utils/createAnimationFrame'
+import { TestFrag, VertexOutput } from '../frags'
+import { wgsl } from '../utils/wgsl'
+import { arrayOf, f32, struct, vec2f, Infer } from 'typegpu/data'
 import tgpu from 'typegpu/experimental'
-import { useRootContext } from './lib/RootContext'
-import { useCanvas } from './lib/CanvasContext'
-import { premultipliedAlphaBlend } from './utils/blendModes'
-import { useCamera } from './CameraContext'
-
-const { random } = Math
+import { useRootContext } from '../lib/RootContext'
+import { useCanvas } from '../lib/CanvasContext'
+import { premultipliedAlphaBlend } from '../utils/blendModes'
+import { useCamera } from '../lib/CameraContext'
 
 const Circle = struct({
-  position: vec2f,
+  center: vec2f,
   radius: f32,
 }).$name('Circle')
+type Circle = Infer<typeof Circle>
 
 const N = 10000
 const SUBDIVS = 24
@@ -23,8 +22,17 @@ const uniformBindGroupLayout = tgpu.bindGroupLayout({
   circles: { storage: (length) => arrayOf(Circle, length) },
 })
 
-export function Circles(props: { clearColor: GPUColor; frag: TestFrag }) {
-  const { worldToClip, clipToPixels, ...camera } = useCamera()
+type CirclesProps = {
+  frag: TestFrag
+  circles: Circle[]
+  clearColor?: [number, number, number, number]
+}
+
+export function Circles(props: CirclesProps) {
+  const {
+    wgsl: { worldToClip, clipToPixels },
+    ...camera
+  } = useCamera()
   const { root, device } = useRootContext()
   const { context } = useCanvas()
 
@@ -34,12 +42,7 @@ export function Circles(props: { clearColor: GPUColor; frag: TestFrag }) {
     .$name('Circles')
 
   createEffect(() => {
-    circlesBuffer.write(
-      Array.from({ length: N }).map(() => ({
-        position: vec2f(random() * 2 - 1, random() * 2 - 1),
-        radius: 0.01 * random() + 0.001,
-      })),
-    )
+    circlesBuffer.write(props.circles)
   })
 
   const stuff = createMemo(() => {
@@ -57,6 +60,7 @@ export function Circles(props: { clearColor: GPUColor; frag: TestFrag }) {
       const WEDGE_ANGLE = radians(360.0) / SUBDIVS;
       const MIN_INNER_RADIUS = 0.5;
       const MAX_INNER_RADIUS = 0.95;
+      const OVERSIZE_FACTOR = 1.01;
 
       @vertex fn vs(
         @builtin(vertex_index) vertexIndex : u32,
@@ -65,11 +69,11 @@ export function Circles(props: { clearColor: GPUColor; frag: TestFrag }) {
         let circle = circles[instanceIndex];
         let angle = f32(vertexIndex / 2) * WEDGE_ANGLE;
         let unitCircle = vec2f(cos(angle), sin(angle));
-        let clip0 = worldToClip(circle.position);
-        let clip1 = worldToClip(circle.position + unitCircle * circle.radius);
+        let clip0 = worldToClip(circle.center);
+        let clip1 = worldToClip(circle.center + unitCircle * circle.radius);
         let lengthPX = length(clipToPixels(clip1 - clip0));
         let innerRatio = clamp(1 - 20 / lengthPX, MIN_INNER_RADIUS, MAX_INNER_RADIUS);
-        let ratio = select(innerRatio, 1, vertexIndex % 2 == 0);
+        let ratio = select(innerRatio, OVERSIZE_FACTOR, vertexIndex % 2 == 0);
         let clip = mix(clip0, clip1, ratio);
 
         var out: VertexOutput;
@@ -138,7 +142,7 @@ export function Circles(props: { clearColor: GPUColor; frag: TestFrag }) {
       label: 'our basic canvas renderPass',
       colorAttachments: [
         {
-          clearValue: props.clearColor,
+          clearValue: props.clearColor ?? [1, 1, 1, 1],
           loadOp: 'clear',
           storeOp: 'store',
           view,
@@ -148,7 +152,9 @@ export function Circles(props: { clearColor: GPUColor; frag: TestFrag }) {
     pass.setPipeline(pipeline)
     pass.setBindGroup(0, root.unwrap(camera.bindGroup))
     pass.setBindGroup(1, root.unwrap(uniformBindGroup))
-    pass.draw((SUBDIVS + 1) * 2, N)
+    if (props.circles.length > 0) {
+      pass.draw((SUBDIVS + 1) * 2, props.circles.length)
+    }
     pass.end()
 
     const commandBuffer = encoder.finish()

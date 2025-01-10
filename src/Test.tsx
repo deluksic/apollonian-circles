@@ -7,7 +7,7 @@ import tgpu from 'typegpu/experimental'
 import { useRootContext } from './lib/RootContext'
 import { useCanvas } from './lib/CanvasContext'
 import { premultipliedAlphaBlend } from './utils/blendModes'
-import { useCamera } from './CameraContext'
+import { useCamera } from './lib/CameraContext'
 
 const Uniforms = struct({
   translation: vec2f,
@@ -22,7 +22,10 @@ export function Test(props: {
   translation: v2f
   frag: TestFrag
 }) {
-  const { positionTransform, ...camera } = useCamera()
+  const {
+    wgsl: { worldToClip },
+    ...camera
+  } = useCamera()
   const { root, device } = useRootContext()
   const { context } = useCanvas()
 
@@ -36,7 +39,7 @@ export function Test(props: {
       ${{
         VertexOutput,
         frag: props.frag,
-        positionTransform,
+        worldToClip,
         ...camera.BindGroupLayout.bound,
         ...uniformBindGroupLayout.bound,
       }}
@@ -51,7 +54,7 @@ export function Test(props: {
           vec2f( 0.5, -0.5),   // bottom right
         );
         let p = pos[vertexIndex] + uniforms.translation * (2 * f32(instanceIndex) - 1);
-        let clip = positionTransform(p);
+        let clip = worldToClip(p);
 
         var out: VertexOutput;
         out.position = vec4f(clip.xy / clip.z, 0, 1);

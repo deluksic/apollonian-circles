@@ -4,4 +4,4 @@ A simple art app where you click to create circles. The longer you hold, the lar
 
 # Why
 
-Developed as a technical challenge. Currently uses SVG to render circles, but will use WebGPU in next iterations.
+Developed as a technical challenge, to learn math and WebGPU.

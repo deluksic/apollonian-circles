@@ -1,6 +1,9 @@
+html,
 body {
   margin: 0;
+  overflow: hidden;
   overscroll-behavior: none;
+  font-family: Inter;
 }
 
 * {

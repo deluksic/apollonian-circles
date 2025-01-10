@@ -55,12 +55,13 @@ const frag4 = frag
   .does(
     /* wgsl */ `
     (in: VertexOutput) -> vec4f {
-      const OUTER_RADIUS = 0.98;
+      const OUTER_RADIUS = 1.0;
       let dist = length(in.positionOriginal);
-      let pxWidth = fwidth(dist);
-      let disk = clamp((OUTER_RADIUS - dist) / pxWidth, 0, 1);
+      let distWidth = fwidth(dist);
+      // adding half a distWidth in order for circles to touch fully
+      let disk = clamp((0.5*distWidth + OUTER_RADIUS - dist) / distWidth, 0, 1);
       let fade = smoothstep(in.innerRatio, OUTER_RADIUS, dist);
-      return vec4f(vec3f(fade), disk * fade);
+      return vec4f(vec3f(1-fade), disk * fade);
     }
   `,
   )

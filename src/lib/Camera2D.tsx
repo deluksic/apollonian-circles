@@ -1,10 +1,10 @@
-import { mat3x3f, struct, v2f, vec2f } from 'typegpu/data'
+import { mat3x3f, mat4x4f, struct, v2f, vec2f, vec3f } from 'typegpu/data'
 import tgpu from 'typegpu/experimental'
 import { CameraContextProvider } from './CameraContext'
-import { ParentProps } from 'solid-js'
-import { useCanvas } from './lib/CanvasContext'
-import { useRootContext } from './lib/RootContext'
-import { mat3 } from 'wgpu-matrix'
+import { createMemo, ParentProps } from 'solid-js'
+import { useCanvas } from './CanvasContext'
+import { useRootContext } from './RootContext'
+import { mat3, mat4, vec3 } from 'wgpu-matrix'
 
 export const Camera2DUniforms = struct({
   viewMatrix: mat3x3f,
@@ -56,6 +56,7 @@ type Camera2DProps = {
 export function Camera2D(props: ParentProps<Camera2DProps>) {
   const { root } = useRootContext()
   const { canvasSize } = useCanvas()
+  const zoom = () => 1 / props.fovy
 
   const uniformsBuffer = root
     .createBuffer(Camera2DUniforms)
@@ -66,23 +67,41 @@ export function Camera2D(props: ParentProps<Camera2DProps>) {
     camera2DUniforms: uniformsBuffer,
   })
 
-  const uniforms = () => {
+  const uniforms = createMemo(() => {
     const { position, fovy } = props
     const { x, y } = position
     const { width, height } = canvasSize()
     const aspect = width / height
+    const viewMatrix4 = mat4x4f()
+    mat4.ortho(
+      x - aspect * fovy,
+      x + aspect * fovy,
+      y - fovy,
+      y + fovy,
+      0,
+      0,
+      viewMatrix4,
+    )
     // prettier-ignore
     const viewMatrix = mat3x3f(
-      1 / fovy / aspect, 0, 0,
-      0, 1 / fovy, 0,
-      -x / fovy / aspect, -y / fovy, 1,
+      viewMatrix4.columns[0]!.xyw,
+      viewMatrix4.columns[1]!.xyw,
+      viewMatrix4.columns[3]!.xyw,
     )
-    const viewMatrixInverse = mat3x3f(...mat3.inverse(viewMatrix))
+    const viewMatrixInverse = mat3.inverse(viewMatrix, mat3x3f())
     return {
       viewMatrix,
       viewMatrixInverse,
       resolution: vec2f(width, height),
     }
+  })
+
+  function clipToWorld({ x, y }: v2f) {
+    return vec3.transformMat3(
+      vec3f(x, y, 1),
+      uniforms().viewMatrixInverse,
+      vec2f(),
+    )
   }
 
   function update() {
@@ -95,9 +114,15 @@ export function Camera2D(props: ParentProps<Camera2DProps>) {
         update,
         bindGroup: uniformBindGroup,
         BindGroupLayout: Camera2DBindGroupLayout,
-        worldToClip: camera2DWorldToClip,
-        clipToWorld: camera2DClipToWorld,
-        clipToPixels: camera2DClipToPixels,
+        wgsl: {
+          worldToClip: camera2DWorldToClip,
+          clipToWorld: camera2DClipToWorld,
+          clipToPixels: camera2DClipToPixels,
+        },
+        js: {
+          clipToWorld,
+        },
+        zoom,
       }}
     >
       {props.children}
