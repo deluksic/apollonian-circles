@@ -2,9 +2,25 @@ import tgpu from 'typegpu/experimental'
 
 type Wgsl = Parameters<typeof tgpu.resolve>['0']['externals']
 
-export function wgsl(strings: TemplateStringsArray, ...externals: Wgsl[]) {
+export function wgsl(
+  strings: TemplateStringsArray,
+  ...externalsOrStrings: (Wgsl | string | number)[]
+) {
+  const externals = []
+  const stringParts = []
+  for (let i = 0; i < strings.length; ++i) {
+    stringParts.push(strings[i])
+    if (i < externalsOrStrings.length) {
+      const ext = externalsOrStrings[i]
+      if (typeof ext === 'object') {
+        externals.push(ext)
+      } else {
+        stringParts.push(ext)
+      }
+    }
+  }
   return tgpu.resolve({
-    template: strings.join(''),
+    template: stringParts.join(''),
     externals: Object.assign({}, ...externals),
   })
 }

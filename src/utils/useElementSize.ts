@@ -14,6 +14,7 @@ export type ElementSize = {
 
 export function useElementSize(
   target: Accessor<HTMLElement | null | undefined>,
+  onChange?: (size: ElementSize) => void,
 ) {
   const [size, setSize] = createSignal<ElementSize>()
   createEffect(() => {
@@ -32,12 +33,14 @@ export function useElementSize(
       const { width, height } = t.getBoundingClientRect()
       const widthPX = entry.inlineSize
       const heightPX = entry.blockSize
-      setSize({
+      const newSize: ElementSize = {
         width,
         height,
         widthPX,
         heightPX,
-      })
+      }
+      setSize(newSize)
+      onChange?.(newSize)
     })
     observer.observe(t)
     onCleanup(() => {

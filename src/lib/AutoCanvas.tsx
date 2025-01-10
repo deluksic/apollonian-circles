@@ -12,7 +12,14 @@ type AutoCanvasProps = {
 export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
   const { device } = useRootContext()
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement>()
-  const canvasSize = useElementSize(canvas)
+  const canvasSize = useElementSize(canvas, (size) => {
+    const el = canvas()
+    if (!el) {
+      return
+    }
+    el.width = max(1, min(size.widthPX, device.limits.maxTextureDimension2D))
+    el.height = max(1, min(size.heightPX, device.limits.maxTextureDimension2D))
+  })
 
   function createContext(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('webgpu')
@@ -25,16 +32,6 @@ export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
     })
     return ctx
   }
-
-  createEffect(() => {
-    const el = canvas()
-    const size = canvasSize()
-    if (!el || !size) {
-      return
-    }
-    el.width = max(1, min(size.widthPX, device.limits.maxTextureDimension2D))
-    el.height = max(1, min(size.heightPX, device.limits.maxTextureDimension2D))
-  })
 
   return (
     <>

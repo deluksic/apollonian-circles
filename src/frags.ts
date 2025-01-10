@@ -1,13 +1,15 @@
 import tgpu from 'typegpu/experimental'
-import { struct, builtin, vec2f, vec4f, location } from 'typegpu/data'
+import { struct, builtin, vec2f, vec4f, location, f32 } from 'typegpu/data'
 
 export const VertexOutput = struct({
   position: builtin.position,
   positionOriginal: location(0, vec2f),
+  innerRatio: location(1, f32),
 })
 
-const frag = tgpu
-  .fn([VertexOutput], vec4f)
+const frag = tgpu.fn([VertexOutput], vec4f)
+
+const frag1 = frag
   .does(
     /* wgsl */ `
     (in: VertexOutput) -> vec4f {
@@ -20,8 +22,7 @@ const frag = tgpu
   )
   .$uses({ VertexOutput })
 
-const frag2 = tgpu
-  .fn([VertexOutput], vec4f)
+const frag2 = frag
   .does(
     /* wgsl */ `
     (in: VertexOutput) -> vec4f {
@@ -32,8 +33,7 @@ const frag2 = tgpu
   )
   .$uses({ VertexOutput })
 
-const frag3 = tgpu
-  .fn([VertexOutput], vec4f)
+const frag3 = frag
   .does(
     /* wgsl */ `
     (in: VertexOutput) -> vec4f {
@@ -51,10 +51,25 @@ const frag3 = tgpu
   )
   .$uses({ VertexOutput })
 
+const frag4 = frag
+  .does(
+    /* wgsl */ `
+    (in: VertexOutput) -> vec4f {
+      const OUTER_RADIUS = 0.98;
+      let dist = length(in.positionOriginal);
+      let pxWidth = fwidth(dist);
+      let disk = clamp((OUTER_RADIUS - dist) / pxWidth, 0, 1);
+      let fade = smoothstep(in.innerRatio, OUTER_RADIUS, dist);
+      return vec4f(vec3f(fade), disk * fade);
+    }
+  `,
+  )
+  .$uses({ VertexOutput })
+
 export type TestFrag = (typeof frags)[keyof typeof frags]
 export const frags = {
-  default: frag3,
-  frag,
+  frag1,
   frag2,
   frag3,
+  frag4,
 }

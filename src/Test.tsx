@@ -22,8 +22,7 @@ export function Test(props: {
   translation: v2f
   frag: TestFrag
 }) {
-  const { positionTransform, CameraBindGroupLayout, cameraBindGroup } =
-    useCamera()
+  const { positionTransform, ...camera } = useCamera()
   const { root, device } = useRootContext()
   const { context } = useCanvas()
 
@@ -38,7 +37,7 @@ export function Test(props: {
         VertexOutput,
         frag: props.frag,
         positionTransform,
-        ...CameraBindGroupLayout.bound,
+        ...camera.BindGroupLayout.bound,
         ...uniformBindGroupLayout.bound,
       }}
 
@@ -74,7 +73,7 @@ export function Test(props: {
       label: 'our hardcoded red triangle pipeline',
       layout: device.createPipelineLayout({
         bindGroupLayouts: [
-          root.unwrap(CameraBindGroupLayout),
+          root.unwrap(camera.BindGroupLayout),
           root.unwrap(uniformBindGroupLayout),
         ],
       }),
@@ -107,6 +106,7 @@ export function Test(props: {
     // set it as the texture to render to.
     const view = context.getCurrentTexture().createView()
     uniformsBuffer.write({ translation: props.translation })
+    camera.update()
 
     // make a command encoder to start encoding commands
     const encoder = device.createCommandEncoder()
@@ -124,7 +124,7 @@ export function Test(props: {
       ],
     })
     pass.setPipeline(pipeline)
-    pass.setBindGroup(0, root.unwrap(cameraBindGroup))
+    pass.setBindGroup(0, root.unwrap(camera.bindGroup))
     pass.setBindGroup(1, root.unwrap(uniformBindGroup))
     pass.draw(3, 2) // call our vertex shader 3 times
     pass.end()

@@ -1,208 +1,161 @@
-import { For, Show, createSignal } from 'solid-js'
-import {
-  createPromiseCallbacks,
-  isDefined,
-  lerp,
-  nextAnimationFrame,
-  range,
-} from './utils'
-import ui from './Circles.module.css'
-import { createElementSize } from './createElementSize'
-import { createCamera2D } from './camera2D'
-import {
-  chooseOrCreateCircle,
-  circles,
-  closestFirstCircle,
-  closestSecondCircle,
-  closestThirdCircle,
-  debug,
-  growUntilRadius,
-  setDebug,
-  twoCircleCenterline,
-} from './state'
-import { vec2Distance } from './vec2'
+import { createEffect, createMemo } from 'solid-js'
+import { createAnimationFrame } from './utils/createAnimationFrame'
+import { TestFrag, VertexOutput } from './frags'
+import { wgsl } from './utils/wgsl'
+import { arrayOf, f32, struct, vec2f } from 'typegpu/data'
+import tgpu from 'typegpu/experimental'
+import { useRootContext } from './lib/RootContext'
+import { useCanvas } from './lib/CanvasContext'
+import { premultipliedAlphaBlend } from './utils/blendModes'
+import { useCamera } from './CameraContext'
 
-export function Circles() {
-  const [element, setElement] = createSignal<HTMLElement>()
-  const [selectedCircleIndex, setSelectedCircleIndex] = createSignal<number>()
-  const [firstCircleIndex, setFirstCircleIndex] = createSignal<number>()
-  const [secondCircleIndex, setSecondCircleIndex] = createSignal<number>()
-  const [thirdCircleIndex, setThirdCircleIndex] = createSignal<number>()
-  const size = createElementSize(element)
-  const camera = createCamera2D(size)
+const { random } = Math
 
-  async function startCircle(ev: PointerEvent, stop: Promise<PointerEvent>) {
-    while (true) {
-      const xy = camera.clientToWorld(ev)
-      const index = chooseOrCreateCircle(xy)
+const Circle = struct({
+  position: vec2f,
+  radius: f32,
+}).$name('Circle')
 
-      setSelectedCircleIndex(index)
-      setFirstCircleIndex(undefined)
-      setSecondCircleIndex(undefined)
-      setThirdCircleIndex(undefined)
+const N = 10000
+const SUBDIVS = 24
 
-      const first = closestFirstCircle(index)
-      await growUntilRadius(index, first.radius, first.curve, camera.zoom, stop)
-      if (first.index === undefined) {
-        return
+const uniformBindGroupLayout = tgpu.bindGroupLayout({
+  circles: { storage: (length) => arrayOf(Circle, length) },
+})
+
+export function Circles(props: { clearColor: GPUColor; frag: TestFrag }) {
+  const { worldToClip, clipToPixels, ...camera } = useCamera()
+  const { root, device } = useRootContext()
+  const { context } = useCanvas()
+
+  const circlesBuffer = root
+    .createBuffer(arrayOf(Circle, N))
+    .$usage('storage')
+    .$name('Circles')
+
+  createEffect(() => {
+    circlesBuffer.write(
+      Array.from({ length: N }).map(() => ({
+        position: vec2f(random() * 2 - 1, random() * 2 - 1),
+        radius: 0.01 * random() + 0.001,
+      })),
+    )
+  })
+
+  const stuff = createMemo(() => {
+    const shaderCode = wgsl/* wgsl */ `
+      ${{
+        VertexOutput,
+        frag: props.frag,
+        worldToClip,
+        clipToPixels,
+        ...camera.BindGroupLayout.bound,
+        ...uniformBindGroupLayout.bound,
+      }}
+
+      const SUBDIVS = ${SUBDIVS};
+      const WEDGE_ANGLE = radians(360.0) / SUBDIVS;
+      const MIN_INNER_RADIUS = 0.5;
+      const MAX_INNER_RADIUS = 0.95;
+
+      @vertex fn vs(
+        @builtin(vertex_index) vertexIndex : u32,
+        @builtin(instance_index) instanceIndex : u32,
+      ) -> VertexOutput {
+        let circle = circles[instanceIndex];
+        let angle = f32(vertexIndex / 2) * WEDGE_ANGLE;
+        let unitCircle = vec2f(cos(angle), sin(angle));
+        let clip0 = worldToClip(circle.position);
+        let clip1 = worldToClip(circle.position + unitCircle * circle.radius);
+        let lengthPX = length(clipToPixels(clip1 - clip0));
+        let innerRatio = clamp(1 - 20 / lengthPX, MIN_INNER_RADIUS, MAX_INNER_RADIUS);
+        let ratio = select(innerRatio, 1, vertexIndex % 2 == 0);
+        let clip = mix(clip0, clip1, ratio);
+
+        var out: VertexOutput;
+        out.position = vec4f(clip, 0, 1);
+        out.positionOriginal = mix(vec2f(0,0), unitCircle, ratio);
+        out.innerRatio = innerRatio;
+        return out;
       }
-      setFirstCircleIndex(first.index)
 
-      const second = closestSecondCircle(first.index, index)
-      await growUntilRadius(
-        index,
-        second.radius,
-        second.curve,
-        camera.zoom,
-        stop
-      )
-      if (second.index === undefined) {
-        return
+      @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
+        let color = frag(in);
+        return vec4f(color.rgb * color.a, color.a);
       }
-      setSecondCircleIndex(second.index)
+    `
 
-      const third = closestThirdCircle(first.index, second.index, index)
-      await growUntilRadius(index, third.radius, third.curve, camera.zoom, stop)
-      if (third.index === undefined) {
-        return
-      }
-      setThirdCircleIndex(third.index)
+    const module = device.createShaderModule({
+      label: 'our hardcoded red triangle shaders',
+      code: shaderCode,
+    })
+    const pipeline = device.createRenderPipeline({
+      label: 'our hardcoded red triangle pipeline',
+      primitive: {
+        topology: 'triangle-strip',
+      },
+      layout: device.createPipelineLayout({
+        bindGroupLayouts: [
+          root.unwrap(camera.BindGroupLayout),
+          root.unwrap(uniformBindGroupLayout),
+        ],
+      }),
+      vertex: {
+        entryPoint: 'vs',
+        module,
+      },
+      fragment: {
+        entryPoint: 'fs',
+        module,
+        targets: [
+          {
+            format: navigator.gpu.getPreferredCanvasFormat(),
+            blend: premultipliedAlphaBlend,
+          },
+        ],
+      },
+    })
 
-      {
-        const circle = circles[index]!
-        if (vec2Distance(circle.center, xy) < circle.radius) {
-          return
-        }
-      }
+    const uniformBindGroup = uniformBindGroupLayout.populate({
+      circles: circlesBuffer.buffer,
+    })
 
-      const result = await Promise.race([nextAnimationFrame(), stop])
-      if (result instanceof PointerEvent) {
-        return
-      }
-    }
+    return { pipeline, uniformBindGroup }
+  })
+
+  const render = () => {
+    const { pipeline, uniformBindGroup } = stuff()
+    // Get the current texture from the canvas context and
+    // set it as the texture to render to.
+    const view = context.getCurrentTexture().createView()
+    camera.update()
+
+    // make a command encoder to start encoding commands
+    const encoder = device.createCommandEncoder()
+
+    // make a render pass encoder to encode render specific commands
+    const pass = encoder.beginRenderPass({
+      label: 'our basic canvas renderPass',
+      colorAttachments: [
+        {
+          clearValue: props.clearColor,
+          loadOp: 'clear',
+          storeOp: 'store',
+          view,
+        },
+      ],
+    })
+    pass.setPipeline(pipeline)
+    pass.setBindGroup(0, root.unwrap(camera.bindGroup))
+    pass.setBindGroup(1, root.unwrap(uniformBindGroup))
+    pass.draw((SUBDIVS + 1) * 2, N)
+    pass.end()
+
+    const commandBuffer = encoder.finish()
+    device.queue.submit([commandBuffer])
   }
 
-  return (
-    <>
-      <div class={ui.circleCounter}>Number of Circles: {circles.length}</div>
-      <div class={ui.controls}>
-        <label>
-          <input
-            type="checkbox"
-            checked={debug()}
-            onChange={(ev) => setDebug(ev.target.checked)}
-          />{' '}
-          Debug mode
-        </label>
-      </div>
-      <Show when={circles.length === 0}>
-        <div class={ui.welcomeMessage}>
-          <h1>Apollonian Circles</h1>
-          <span>Click to create, scroll to zoom.</span>
-        </div>
-      </Show>
-      <svg
-        ref={setElement}
-        class={ui.svg}
-        viewBox="-1 -1 2 2"
-        preserveAspectRatio="xMidYMid meet"
-        onWheel={(ev) => {
-          camera.zoomKeepPointInPlace(
-            1 - ev.deltaY * 0.001,
-            camera.clientToWorld(ev)
-          )
-          ev.preventDefault()
-        }}
-        onPointerDown={async (ev) => {
-          const { currentTarget: el } = ev
-          el.setPointerCapture(ev.pointerId)
-          const { promise, resolve } = createPromiseCallbacks<PointerEvent>()
-          el.addEventListener('pointerup', resolve)
-          promise.finally(() => {
-            el.removeEventListener('pointerup', resolve)
-          })
-          startCircle(ev, promise)
-        }}
-      >
-        <defs>
-          <radialGradient id="CircleGradientBlack">
-            <stop offset="80%" stop-color="#0000" />
-            <stop offset="100%" stop-color="#000" />
-          </radialGradient>
-          <radialGradient id="CircleGradientRed">
-            <stop offset="80%" stop-color="#F000" />
-            <stop offset="100%" stop-color="#F00" />
-          </radialGradient>
-          <radialGradient id="CircleGradientGreen">
-            <stop offset="80%" stop-color="#0F00" />
-            <stop offset="100%" stop-color="#0F0" />
-          </radialGradient>
-          <radialGradient id="CircleGradientBlue">
-            <stop offset="80%" stop-color="#00F0" />
-            <stop offset="100%" stop-color="#00F" />
-          </radialGradient>
-        </defs>
-        <g transform={camera.transform()}>
-          <For each={circles}>
-            {(circle, i) => (
-              <circle
-                cx={circle.center[0]}
-                cy={circle.center[1]}
-                r={circle.radius}
-                fill={
-                  debug()
-                    ? i() === firstCircleIndex()
-                      ? 'url(#CircleGradientRed'
-                      : i() === secondCircleIndex()
-                      ? 'url(#CircleGradientGreen'
-                      : i() === thirdCircleIndex()
-                      ? 'url(#CircleGradientBlue'
-                      : 'url(#CircleGradientBlack'
-                    : 'url(#CircleGradientBlack'
-                }
-              />
-            )}
-          </For>
-          <Show
-            when={
-              debug() &&
-              selectedCircleIndex() !== undefined &&
-              firstCircleIndex() !== undefined &&
-              secondCircleIndex() !== undefined
-            }
-          >
-            {(() => {
-              const d = () => {
-                const selectedCircle = circles[selectedCircleIndex()!]!
-                const firstCircle = circles[firstCircleIndex()!]!
-                const secondCircle = circles[secondCircleIndex()!]!
-                const pathString = range(1000)
-                  .map((i) =>
-                    twoCircleCenterline(
-                      firstCircle,
-                      secondCircle,
-                      lerp(0, 0.4 / camera.zoom(), i / 1000),
-                      selectedCircle
-                    )
-                  )
-                  .filter(isDefined)
-                  .map(([x, y]) => `${x} ${y}`)
-                  .join(` L `)
-                return `M ${pathString}`
-              }
-              return (
-                <path
-                  fill="none"
-                  stroke="black"
-                  vector-effect="non-scaling-stroke"
-                  stroke-width={1}
-                  d={d()}
-                />
-              )
-            })()}
-          </Show>
-        </g>
-      </svg>
-    </>
-  )
+  createAnimationFrame(render)
+
+  return null
 }
