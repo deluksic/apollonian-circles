@@ -1,6 +1,6 @@
 import { createMemo } from 'solid-js'
 import { createAnimationFrame } from './utils/createAnimationFrame'
-import { TestFrag, VertexOutput } from './frags'
+import { TestFrag, VertexOutput } from './demo/frags'
 import { wgsl } from './utils/wgsl'
 import { struct, v2f, vec2f } from 'typegpu/data'
 import tgpu from 'typegpu/experimental'

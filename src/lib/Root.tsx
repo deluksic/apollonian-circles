@@ -20,6 +20,7 @@ export function Root(props: ParentProps<RootProps>) {
           `Failed to get GPUAdapter, make sure to use a browser with WebGPU support.`,
         )
       }
+      console.info(`Using ${adapter.info.vendor} adapter.`)
       const device = await adapter?.requestDevice()
       if (!device) {
         throw new Error(

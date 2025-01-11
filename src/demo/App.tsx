@@ -8,10 +8,8 @@ import {
   closestFirstCircle,
   closestSecondCircle,
   closestThirdCircle,
-  debug,
   growUntilRadius,
   nextAnimationFrame,
-  setDebug,
 } from './state'
 import { useCanvas } from '@/lib/CanvasContext'
 import { createPromiseCallbacks } from '@/utils/createPromiseCallbacks'
@@ -20,7 +18,7 @@ import { Root } from '@/lib/Root'
 import { AutoCanvas } from '@/lib/AutoCanvas'
 import { WheelZoomCamera2D } from './WheelZoomCamera2D'
 import { Circles } from '@/demo/Circles'
-import { frags } from '@/frags'
+import { vec4f } from 'typegpu/data'
 
 function Inside() {
   const {
@@ -63,6 +61,7 @@ function Inside() {
         return
       }
       setThirdCircleIndex(third.index)
+      setSelectedCircleIndex(undefined)
 
       {
         const circle = circles[index]!
@@ -100,7 +99,22 @@ function Inside() {
     })
   })
 
-  return <Circles circles={circles} frag={frags.frag4} />
+  return (
+    <Circles
+      circles={circles}
+      highlighted={
+        selectedCircleIndex() !== undefined
+          ? {
+              index: selectedCircleIndex()!,
+              color_: {
+                rim: vec4f(0, 0, 0, 1),
+                fade: vec4f(0.5, 0.8, 1, 1),
+              },
+            }
+          : undefined
+      }
+    />
+  )
 }
 
 export function App() {

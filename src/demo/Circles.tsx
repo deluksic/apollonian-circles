@@ -1,30 +1,92 @@
 import { createEffect, createMemo } from 'solid-js'
 import { createAnimationFrame } from '../utils/createAnimationFrame'
-import { TestFrag, VertexOutput } from '../frags'
 import { wgsl } from '../utils/wgsl'
-import { arrayOf, f32, struct, vec2f, Infer } from 'typegpu/data'
+import {
+  arrayOf,
+  f32,
+  struct,
+  vec2f,
+  Infer,
+  vec4f,
+  u32,
+  builtin,
+  location,
+} from 'typegpu/data'
 import tgpu from 'typegpu/experimental'
 import { useRootContext } from '../lib/RootContext'
 import { useCanvas } from '../lib/CanvasContext'
 import { premultipliedAlphaBlend } from '../utils/blendModes'
 import { useCamera } from '../lib/CameraContext'
 
+const VertexOutput = struct({
+  position: builtin.position,
+  positionOriginal: location(0, vec2f),
+  innerRatio: location(1, f32),
+  vHighlighted: location(2, f32),
+})
+
+type Circle = Infer<typeof Circle>
 const Circle = struct({
   center: vec2f,
   radius: f32,
 }).$name('Circle')
-type Circle = Infer<typeof Circle>
+
+type CircleColor = Infer<typeof CircleColor>
+const CircleColor = struct({
+  rim: vec4f,
+  fade: vec4f,
+})
+
+type HighlightedCircle = Infer<typeof HighlightedCircle>
+const HighlightedCircle = struct({
+  index: u32,
+  color_: CircleColor,
+})
 
 const N = 10000
 const SUBDIVS = 24
 
 const uniformBindGroupLayout = tgpu.bindGroupLayout({
   circles: { storage: (length) => arrayOf(Circle, length) },
+  color: { uniform: CircleColor },
+  highlighted: { uniform: HighlightedCircle },
 })
 
+const linearstep = tgpu.fn([f32, f32, f32], f32).does(/* wgsl */ `
+  (edge0: f32, edge1: f32, x: f32) -> f32 {
+    return clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+  }`)
+
+const fadeFragmentShader = tgpu
+  .fn([VertexOutput], vec4f)
+  .does(
+    /* wgsl */ `
+    (in: VertexOutput) -> vec4f {
+      const OUTER_RADIUS = 1.0;
+      let dist = length(in.positionOriginal);
+      let distWidth = fwidth(dist);
+      // adding half a distWidth in order for circles to touch fully
+      let disk = clamp((0.5*distWidth + OUTER_RADIUS - dist) / distWidth, 0, 1);
+      let fade = linearstep(in.innerRatio, OUTER_RADIUS, dist);
+      if in.vHighlighted != 0.0 {
+        return mix(highlighted.color_.fade, highlighted.color_.rim, fade * fade) * vec4f(1, 1, 1, disk * fade);
+      } else {
+        return mix(color.fade, color.rim, fade * fade) * vec4f(1, 1, 1, disk * fade);
+      };
+    }
+  `,
+  )
+  .$uses({
+    VertexOutput,
+    color: uniformBindGroupLayout.bound.color,
+    highlighted: uniformBindGroupLayout.bound.highlighted,
+    linearstep,
+  })
+
 type CirclesProps = {
-  frag: TestFrag
   circles: Circle[]
+  highlighted?: HighlightedCircle
+  color?: CircleColor
   clearColor?: [number, number, number, number]
 }
 
@@ -39,19 +101,47 @@ export function Circles(props: CirclesProps) {
   const circlesBuffer = root
     .createBuffer(arrayOf(Circle, N))
     .$usage('storage')
-    .$name('Circles')
+    .$name('circles')
 
   createEffect(() => {
     circlesBuffer.write(props.circles)
+  })
+
+  const colorBuffer = root
+    .createBuffer(CircleColor)
+    .$usage('uniform')
+    .$name('color')
+
+  createEffect(() => {
+    colorBuffer.write(
+      props.color ?? {
+        rim: vec4f(0, 0, 0, 1),
+        fade: vec4f(0, 0, 0, 1),
+      },
+    )
+  })
+
+  const highlightedBuffer = root
+    .createBuffer(HighlightedCircle)
+    .$usage('uniform')
+    .$name('highlighted')
+
+  createEffect(() => {
+    highlightedBuffer.write(
+      props.highlighted ?? {
+        index: -1,
+        color_: { rim: vec4f(), fade: vec4f() },
+      },
+    )
   })
 
   const stuff = createMemo(() => {
     const shaderCode = wgsl/* wgsl */ `
       ${{
         VertexOutput,
-        frag: props.frag,
         worldToClip,
         clipToPixels,
+        frag: fadeFragmentShader,
         ...camera.BindGroupLayout.bound,
         ...uniformBindGroupLayout.bound,
       }}
@@ -80,6 +170,7 @@ export function Circles(props: CirclesProps) {
         out.position = vec4f(clip, 0, 1);
         out.positionOriginal = mix(vec2f(0,0), unitCircle, ratio);
         out.innerRatio = innerRatio;
+        out.vHighlighted = f32(instanceIndex == highlighted.index);
         return out;
       }
 
@@ -122,6 +213,8 @@ export function Circles(props: CirclesProps) {
 
     const uniformBindGroup = uniformBindGroupLayout.populate({
       circles: circlesBuffer.buffer,
+      color: colorBuffer,
+      highlighted: highlightedBuffer,
     })
 
     return { pipeline, uniformBindGroup }

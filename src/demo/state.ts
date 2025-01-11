@@ -23,6 +23,11 @@ function vec2AddScaled2(a: v2f, b: v2f, bs: number, c: v2f, cs: number): v2f {
   return vec2f(a.x + b.x * bs + c.x * cs, a.y + b.y * bs + c.y * cs)
 }
 
+// const { random } = Math
+// const initialCircles: Circle[] = Array.from({ length: 5000 }).map(() => ({
+//   center: vec2f(random() * 10 - 5, random() * 10 - 5),
+//   radius: random() * 0.05 + 0.05,
+// }))
 export const [circles, setCircles] = createStore<Circle[]>([])
 export const [debug, setDebug] = createSignal(false)
 

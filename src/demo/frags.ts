@@ -1,7 +1,7 @@
 import tgpu from 'typegpu/experimental'
 import { struct, builtin, vec2f, vec4f, location, f32 } from 'typegpu/data'
 
-export const VertexOutput = struct({
+const VertexOutput = struct({
   position: builtin.position,
   positionOriginal: location(0, vec2f),
   innerRatio: location(1, f32),

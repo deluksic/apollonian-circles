@@ -1,6 +1,6 @@
 import { createSignal, For } from 'solid-js'
 import ui from './App.module.css'
-import { frags } from './frags'
+import { frags } from './demo/frags'
 import { Root } from './lib/Root'
 import { AutoCanvas } from './lib/AutoCanvas'
 
