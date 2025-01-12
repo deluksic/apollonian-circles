@@ -166,7 +166,9 @@ export function App() {
       <Show when={circles.length === 0}>
         <div class={ui.welcomeMessage}>
           <h1>Apollonian Circles</h1>
-          <span>Click to create, scroll to zoom.</span>
+          <p class={ui.welcomeMessageSubtitle}>
+            Click to create, scroll to zoom.
+          </p>
         </div>
       </Show>
       <Root>

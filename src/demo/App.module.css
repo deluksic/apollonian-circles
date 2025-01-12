@@ -64,8 +64,14 @@
   pointer-events: none;
 
   & h1 {
+    font-weight: 300;
+    font-size: 3rem;
     margin-top: 0;
   }
+}
+
+.welcomeMessageSubtitle {
+  font-weight: 200;
 }
 
 .canvas {

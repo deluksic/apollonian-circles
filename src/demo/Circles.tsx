@@ -103,7 +103,11 @@ const fadeFragmentShader = tgpu
       // adding half a distWidth in order for circles to touch fully
       let disk = clamp((0.5*distWidth + OUTER_RADIUS - dist) / distWidth, 0, 1);
       let fade = linearstep(in.innerRatio, OUTER_RADIUS, dist);
-      return mix(style.fadeColor, style.rimColor, fade * fade) * vec4f(1, 1, 1, disk * fade);
+      let fadeEaseIn = fade * fade;
+      return (
+        mix(style.fadeColor, style.rimColor, fadeEaseIn) *
+        vec4f(1, 1, 1, disk * fadeEaseIn)
+      );
     }
   `,
   )
