@@ -8,8 +8,10 @@ import {
   closestFirstCircle,
   closestSecondCircle,
   closestThirdCircle,
+  debug,
   growUntilRadius,
   nextAnimationFrame,
+  setDebug,
 } from './state'
 import { useCanvas } from '@/lib/CanvasContext'
 import { createPromiseCallbacks } from '@/utils/createPromiseCallbacks'
@@ -17,8 +19,36 @@ import { vec2 } from 'wgpu-matrix'
 import { Root } from '@/lib/Root'
 import { AutoCanvas } from '@/lib/AutoCanvas'
 import { WheelZoomCamera2D } from './WheelZoomCamera2D'
-import { Circles } from '@/demo/Circles'
+import { Circles, CircleStyle } from '@/demo/Circles'
 import { vec4f } from 'typegpu/data'
+
+const normalStyle: CircleStyle = {
+  rimColor: vec4f(0, 0, 0, 1),
+  fadeColor: vec4f(0, 0, 0, 1),
+}
+const selectedStyle: CircleStyle = {
+  rimColor: vec4f(0, 0, 0, 1),
+  fadeColor: vec4f(0.5, 0.8, 1, 1),
+}
+const debugStyleFirst: CircleStyle = {
+  rimColor: vec4f(0, 0, 0, 1),
+  fadeColor: vec4f(1, 0, 0, 1),
+}
+const debugStyleSecond: CircleStyle = {
+  rimColor: vec4f(0, 0, 0, 1),
+  fadeColor: vec4f(0, 1, 0, 1),
+}
+const debugStyleThird: CircleStyle = {
+  rimColor: vec4f(0, 0, 0, 1),
+  fadeColor: vec4f(0, 0, 1, 1),
+}
+const circleStyles = [
+  selectedStyle,
+  debugStyleFirst,
+  debugStyleSecond,
+  debugStyleThird,
+  normalStyle,
+]
 
 function Inside() {
   const {
@@ -99,20 +129,29 @@ function Inside() {
     })
   })
 
+  function styleIndex(circleIndex: number) {
+    if (circleIndex === selectedCircleIndex()) {
+      return 0
+    } else if (debug()) {
+      switch (circleIndex) {
+        case firstCircleIndex():
+          return 1
+        case secondCircleIndex():
+          return 2
+        case thirdCircleIndex():
+          return 3
+      }
+    }
+    return 4
+  }
+
   return (
     <Circles
-      circles={circles}
-      highlighted={
-        selectedCircleIndex() !== undefined
-          ? {
-              index: selectedCircleIndex()!,
-              color_: {
-                rim: vec4f(0, 0, 0, 1),
-                fade: vec4f(0.5, 0.8, 1, 1),
-              },
-            }
-          : undefined
-      }
+      circles={circles.map((c, i) => ({
+        ...c,
+        styleIndex: styleIndex(i),
+      }))}
+      styles={circleStyles}
     />
   )
 }
@@ -121,6 +160,16 @@ export function App() {
   return (
     <div class={ui.page}>
       <div class={ui.circleCounter}>Number of Circles: {circles.length}</div>
+      <div class={ui.controls}>
+        <label>
+          <input
+            type="checkbox"
+            checked={debug()}
+            onChange={(ev) => setDebug(ev.target.checked)}
+          />{' '}
+          Debug mode
+        </label>
+      </div>
       <Show when={circles.length === 0}>
         <div class={ui.welcomeMessage}>
           <h1>Apollonian Circles</h1>

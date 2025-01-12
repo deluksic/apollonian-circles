@@ -18,29 +18,28 @@ import { useCanvas } from '../lib/CanvasContext'
 import { premultipliedAlphaBlend } from '../utils/blendModes'
 import { useCamera } from '../lib/CameraContext'
 
+const styleIndex = location(2, u32)
+// @ts-expect-error
+styleIndex.attribs.push({ type: '@interpolate', value: ['flat, either'] })
+
 const VertexOutput = struct({
   position: builtin.position,
   positionOriginal: location(0, vec2f),
   innerRatio: location(1, f32),
-  vHighlighted: location(2, f32),
+  styleIndex,
 })
 
 type Circle = Infer<typeof Circle>
 const Circle = struct({
   center: vec2f,
   radius: f32,
+  styleIndex: u32,
 }).$name('Circle')
 
-type CircleColor = Infer<typeof CircleColor>
-const CircleColor = struct({
-  rim: vec4f,
-  fade: vec4f,
-})
-
-type HighlightedCircle = Infer<typeof HighlightedCircle>
-const HighlightedCircle = struct({
-  index: u32,
-  color_: CircleColor,
+export type CircleStyle = Infer<typeof CircleStyle>
+const CircleStyle = struct({
+  rimColor: vec4f,
+  fadeColor: vec4f,
 })
 
 const N = 10000
@@ -48,8 +47,7 @@ const SUBDIVS = 24
 
 const uniformBindGroupLayout = tgpu.bindGroupLayout({
   circles: { storage: (length) => arrayOf(Circle, length) },
-  color: { uniform: CircleColor },
-  highlighted: { uniform: HighlightedCircle },
+  styles: { storage: (length) => arrayOf(CircleStyle, length) },
 })
 
 const linearstep = tgpu.fn([f32, f32, f32], f32).does(/* wgsl */ `
@@ -63,30 +61,26 @@ const fadeFragmentShader = tgpu
     /* wgsl */ `
     (in: VertexOutput) -> vec4f {
       const OUTER_RADIUS = 1.0;
+      let style = styles[in.styleIndex];
       let dist = length(in.positionOriginal);
       let distWidth = fwidth(dist);
       // adding half a distWidth in order for circles to touch fully
       let disk = clamp((0.5*distWidth + OUTER_RADIUS - dist) / distWidth, 0, 1);
       let fade = linearstep(in.innerRatio, OUTER_RADIUS, dist);
-      if in.vHighlighted != 0.0 {
-        return mix(highlighted.color_.fade, highlighted.color_.rim, fade * fade) * vec4f(1, 1, 1, disk * fade);
-      } else {
-        return mix(color.fade, color.rim, fade * fade) * vec4f(1, 1, 1, disk * fade);
-      };
+      return mix(style.fadeColor, style.rimColor, fade * fade) * vec4f(1, 1, 1, disk * fade);
     }
   `,
   )
   .$uses({
     VertexOutput,
-    color: uniformBindGroupLayout.bound.color,
-    highlighted: uniformBindGroupLayout.bound.highlighted,
+    styles: uniformBindGroupLayout.bound.styles,
     linearstep,
   })
 
 type CirclesProps = {
   circles: Circle[]
-  highlighted?: HighlightedCircle
-  color?: CircleColor
+  styles: CircleStyle[]
+  color?: CircleStyle
   clearColor?: [number, number, number, number]
 }
 
@@ -108,31 +102,26 @@ export function Circles(props: CirclesProps) {
   })
 
   const colorBuffer = root
-    .createBuffer(CircleColor)
+    .createBuffer(CircleStyle)
     .$usage('uniform')
     .$name('color')
 
   createEffect(() => {
     colorBuffer.write(
       props.color ?? {
-        rim: vec4f(0, 0, 0, 1),
-        fade: vec4f(0, 0, 0, 1),
+        rimColor: vec4f(0, 0, 0, 1),
+        fadeColor: vec4f(0, 0, 0, 1),
       },
     )
   })
 
-  const highlightedBuffer = root
-    .createBuffer(HighlightedCircle)
-    .$usage('uniform')
-    .$name('highlighted')
+  const stylesBuffer = root
+    .createBuffer(arrayOf(CircleStyle, props.styles.length))
+    .$usage('storage')
+    .$name('styles')
 
   createEffect(() => {
-    highlightedBuffer.write(
-      props.highlighted ?? {
-        index: -1,
-        color_: { rim: vec4f(), fade: vec4f() },
-      },
-    )
+    stylesBuffer.write(props.styles)
   })
 
   const stuff = createMemo(() => {
@@ -170,7 +159,7 @@ export function Circles(props: CirclesProps) {
         out.position = vec4f(clip, 0, 1);
         out.positionOriginal = mix(vec2f(0,0), unitCircle, ratio);
         out.innerRatio = innerRatio;
-        out.vHighlighted = f32(instanceIndex == highlighted.index);
+        out.styleIndex = circle.styleIndex;
         return out;
       }
 
@@ -179,6 +168,7 @@ export function Circles(props: CirclesProps) {
         return vec4f(color.rgb * color.a, color.a);
       }
     `
+    // console.log(shaderCode)
 
     const module = device.createShaderModule({
       label: 'our hardcoded red triangle shaders',
@@ -213,8 +203,7 @@ export function Circles(props: CirclesProps) {
 
     const uniformBindGroup = uniformBindGroupLayout.populate({
       circles: circlesBuffer.buffer,
-      color: colorBuffer,
-      highlighted: highlightedBuffer,
+      styles: stylesBuffer.buffer,
     })
 
     return { pipeline, uniformBindGroup }

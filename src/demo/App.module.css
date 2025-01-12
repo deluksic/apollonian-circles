@@ -3,6 +3,18 @@
   height: 100dvh;
 }
 
+.controls {
+  position: absolute;
+  left: 50%;
+  translate: -50% 0;
+  bottom: 2rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #fffa;
+  backdrop-filter: blur(0.5rem);
+  user-select: none;
+}
+
 .circle-counter {
   position: absolute;
   top: 1rem;
