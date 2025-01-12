@@ -1,4 +1,10 @@
-import { Show, createEffect, createSignal, onCleanup } from 'solid-js'
+import {
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+} from 'solid-js'
 import ui from './App.module.css'
 import { useCamera } from '@/lib/CameraContext'
 import { eventToClip } from '@/utils/eventToClip'
@@ -8,9 +14,11 @@ import {
   closestFirstCircle,
   closestSecondCircle,
   closestThirdCircle,
+  colorScheme,
   debug,
   growUntilRadius,
   nextAnimationFrame,
+  setColorScheme,
   setDebug,
 } from './state'
 import { useCanvas } from '@/lib/CanvasContext'
@@ -19,36 +27,8 @@ import { vec2 } from 'wgpu-matrix'
 import { Root } from '@/lib/Root'
 import { AutoCanvas } from '@/lib/AutoCanvas'
 import { WheelZoomCamera2D } from './WheelZoomCamera2D'
-import { Circles, CircleStyle } from '@/demo/Circles'
-import { vec4f } from 'typegpu/data'
-
-const normalStyle: CircleStyle = {
-  rimColor: vec4f(0, 0, 0, 1),
-  fadeColor: vec4f(0, 0, 0, 1),
-}
-const selectedStyle: CircleStyle = {
-  rimColor: vec4f(0, 0, 0, 1),
-  fadeColor: vec4f(0.5, 0.8, 1, 1),
-}
-const debugStyleFirst: CircleStyle = {
-  rimColor: vec4f(0, 0, 0, 1),
-  fadeColor: vec4f(1, 0, 0, 1),
-}
-const debugStyleSecond: CircleStyle = {
-  rimColor: vec4f(0, 0, 0, 1),
-  fadeColor: vec4f(0, 1, 0, 1),
-}
-const debugStyleThird: CircleStyle = {
-  rimColor: vec4f(0, 0, 0, 1),
-  fadeColor: vec4f(0, 0, 1, 1),
-}
-const circleStyles = [
-  selectedStyle,
-  debugStyleFirst,
-  debugStyleSecond,
-  debugStyleThird,
-  normalStyle,
-]
+import { Circles } from '@/demo/Circles'
+import { CircleStyleType, getTheme } from './style'
 
 function Inside() {
   const {
@@ -129,38 +109,51 @@ function Inside() {
     })
   })
 
-  function styleIndex(circleIndex: number) {
+  const theme = createMemo(() => getTheme(colorScheme()))
+
+  function style(circleIndex: number): CircleStyleType {
     if (circleIndex === selectedCircleIndex()) {
-      return 0
+      return 'selected'
     } else if (debug()) {
       switch (circleIndex) {
         case firstCircleIndex():
-          return 1
+          return 'debugFirst'
         case secondCircleIndex():
-          return 2
+          return 'debugSecond'
         case thirdCircleIndex():
-          return 3
+          return 'debugThird'
       }
     }
-    return 4
+    return 'normal'
   }
 
   return (
     <Circles
       circles={circles.map((c, i) => ({
         ...c,
-        styleIndex: styleIndex(i),
+        styleIndex: theme().getStyleIndex(style(i)),
       }))}
-      styles={circleStyles}
+      clearColor={colorScheme() === 'light' ? [1, 1, 1, 1] : [0, 0, 0, 1]}
+      styles={theme().styles}
     />
   )
 }
 
 export function App() {
   return (
-    <div class={ui.page}>
+    <div class={ui.page} classList={{ [ui[colorScheme()]]: true }}>
       <div class={ui.circleCounter}>Number of Circles: {circles.length}</div>
       <div class={ui.controls}>
+        <label>
+          <input
+            type="checkbox"
+            checked={colorScheme() === 'dark'}
+            onChange={(ev) =>
+              setColorScheme(ev.target.checked ? 'dark' : 'light')
+            }
+          />{' '}
+          Dark
+        </label>
         <label>
           <input
             type="checkbox"

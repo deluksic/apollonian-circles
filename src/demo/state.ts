@@ -2,6 +2,7 @@ import { Accessor, createSignal } from 'solid-js'
 import { createStore, produce, unwrap } from 'solid-js/store'
 import { vec2 } from 'wgpu-matrix'
 import { v2f, vec2f } from 'typegpu/data'
+import { getPreferredColorScheme } from '@/utils/getPreferredColorScheme'
 
 const { sign, sqrt, abs, min, max } = Math
 
@@ -38,6 +39,9 @@ function vec2Normalize(a: v2f) {
 // }))
 export const [circles, setCircles] = createStore<Circle[]>([])
 export const [debug, setDebug] = createSignal(false)
+export const [colorScheme, setColorScheme] = createSignal(
+  getPreferredColorScheme(),
+)
 
 export function chooseOrCreateCircle(xy: v2f): number {
   const circles_ = unwrap(circles)
