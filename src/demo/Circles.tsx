@@ -11,22 +11,19 @@ import {
   u32,
   builtin,
   location,
+  interpolate,
 } from 'typegpu/data'
 import tgpu from 'typegpu/experimental'
 import { useRootContext } from '../lib/RootContext'
 import { useCanvas } from '../lib/CanvasContext'
 import { premultipliedAlphaBlend } from '../utils/blendModes'
-import { useCamera } from '../lib/CameraContext'
-
-const styleIndex = location(2, u32)
-// @ts-expect-error
-styleIndex.attribs.push({ type: '@interpolate', value: ['flat, either'] })
+import { CameraContext, useCamera } from '../lib/CameraContext'
 
 const VertexOutput = struct({
   position: builtin.position,
   positionOriginal: location(0, vec2f),
   innerRatio: location(1, f32),
-  styleIndex,
+  styleIndex: location(2, interpolate('flat, either', u32)),
 })
 
 type Circle = Infer<typeof Circle>
@@ -54,6 +51,45 @@ const linearstep = tgpu.fn([f32, f32, f32], f32).does(/* wgsl */ `
   (edge0: f32, edge1: f32, x: f32) -> f32 {
     return clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
   }`)
+
+const circleVertexShader = (camera: CameraContext) =>
+  tgpu
+    .fn([u32, u32], VertexOutput)
+    .does(
+      /* wgsl */ `
+    (vertexIndex: u32, instanceIndex: u32) -> VertexOutput {
+      const SUBDIVS = ${SUBDIVS};
+      const WEDGE_ANGLE = radians(360.0) / SUBDIVS;
+      const MIN_INNER_RADIUS = 0.5;
+      const MAX_INNER_RADIUS = 0.95;
+      const OVERSIZE_FACTOR = 1.01;
+
+      let circle = circles[instanceIndex];
+      let angle = f32(vertexIndex / 2) * WEDGE_ANGLE;
+      let unitCircle = vec2f(cos(angle), sin(angle));
+      let clip0 = worldToClip(circle.center);
+      let clip1 = worldToClip(circle.center + unitCircle * circle.radius);
+      let lengthPX = length(clipToPixels(clip1 - clip0));
+      let innerRatio = clamp(1 - 20 / lengthPX, MIN_INNER_RADIUS, MAX_INNER_RADIUS);
+      let ratio = select(innerRatio, OVERSIZE_FACTOR, vertexIndex % 2 == 0);
+      let clip = mix(clip0, clip1, ratio);
+
+      var out: VertexOutput;
+      out.position = vec4f(clip, 0, 1);
+      out.positionOriginal = mix(vec2f(0,0), unitCircle, ratio);
+      out.innerRatio = innerRatio;
+      out.styleIndex = circle.styleIndex;
+      return out;
+    }
+  `,
+    )
+    .$uses({
+      VertexOutput,
+      ...camera.BindGroupLayout.bound,
+      circles: uniformBindGroupLayout.bound.circles,
+      worldToClip: camera.wgsl.worldToClip,
+      clipToPixels: camera.wgsl.clipToPixels,
+    })
 
 const fadeFragmentShader = tgpu
   .fn([VertexOutput], vec4f)
@@ -85,10 +121,7 @@ type CirclesProps = {
 }
 
 export function Circles(props: CirclesProps) {
-  const {
-    wgsl: { worldToClip, clipToPixels },
-    ...camera
-  } = useCamera()
+  const camera = useCamera()
   const { root, device } = useRootContext()
   const { context } = useCanvas()
 
@@ -128,39 +161,15 @@ export function Circles(props: CirclesProps) {
     const shaderCode = wgsl/* wgsl */ `
       ${{
         VertexOutput,
-        worldToClip,
-        clipToPixels,
+        vert: circleVertexShader(camera),
         frag: fadeFragmentShader,
-        ...camera.BindGroupLayout.bound,
-        ...uniformBindGroupLayout.bound,
       }}
 
-      const SUBDIVS = ${SUBDIVS};
-      const WEDGE_ANGLE = radians(360.0) / SUBDIVS;
-      const MIN_INNER_RADIUS = 0.5;
-      const MAX_INNER_RADIUS = 0.95;
-      const OVERSIZE_FACTOR = 1.01;
-
       @vertex fn vs(
-        @builtin(vertex_index) vertexIndex : u32,
-        @builtin(instance_index) instanceIndex : u32,
+        @builtin(vertex_index) vertexIndex: u32,
+        @builtin(instance_index) instanceIndex: u32,
       ) -> VertexOutput {
-        let circle = circles[instanceIndex];
-        let angle = f32(vertexIndex / 2) * WEDGE_ANGLE;
-        let unitCircle = vec2f(cos(angle), sin(angle));
-        let clip0 = worldToClip(circle.center);
-        let clip1 = worldToClip(circle.center + unitCircle * circle.radius);
-        let lengthPX = length(clipToPixels(clip1 - clip0));
-        let innerRatio = clamp(1 - 20 / lengthPX, MIN_INNER_RADIUS, MAX_INNER_RADIUS);
-        let ratio = select(innerRatio, OVERSIZE_FACTOR, vertexIndex % 2 == 0);
-        let clip = mix(clip0, clip1, ratio);
-
-        var out: VertexOutput;
-        out.position = vec4f(clip, 0, 1);
-        out.positionOriginal = mix(vec2f(0,0), unitCircle, ratio);
-        out.innerRatio = innerRatio;
-        out.styleIndex = circle.styleIndex;
-        return out;
+        return vert(vertexIndex, instanceIndex);
       }
 
       @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
@@ -168,7 +177,6 @@ export function Circles(props: CirclesProps) {
         return vec4f(color.rgb * color.a, color.a);
       }
     `
-    // console.log(shaderCode)
 
     const module = device.createShaderModule({
       label: 'our hardcoded red triangle shaders',

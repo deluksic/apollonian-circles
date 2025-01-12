@@ -3,6 +3,8 @@ import { createStore, produce, unwrap } from 'solid-js/store'
 import { vec2 } from 'wgpu-matrix'
 import { v2f, vec2f } from 'typegpu/data'
 
+const { sign, sqrt, abs, min, max } = Math
+
 type Circle = {
   center: v2f
   radius: number
@@ -23,6 +25,12 @@ function vec2AddScaled2(a: v2f, b: v2f, bs: number, c: v2f, cs: number): v2f {
   return vec2f(a.x + b.x * bs + c.x * cs, a.y + b.y * bs + c.y * cs)
 }
 
+function vec2Normalize(a: v2f) {
+  // vec2.normalize has inexplicable 1e-5 check so we implement our own
+  const len = sqrt(a.x * a.x + a.y * a.y) || 1
+  return vec2f(a.x / len, a.y / len)
+}
+
 // const { random } = Math
 // const initialCircles: Circle[] = Array.from({ length: 5000 }).map(() => ({
 //   center: vec2f(random() * 10 - 5, random() * 10 - 5),
@@ -30,8 +38,6 @@ function vec2AddScaled2(a: v2f, b: v2f, bs: number, c: v2f, cs: number): v2f {
 // }))
 export const [circles, setCircles] = createStore<Circle[]>([])
 export const [debug, setDebug] = createSignal(false)
-
-const { sign, sqrt, abs, min, max } = Math
 
 export function chooseOrCreateCircle(xy: v2f): number {
   const circles_ = unwrap(circles)
@@ -82,9 +88,8 @@ export function closestSecondCircle(
   const circles_ = unwrap(circles)
   const firstCircle = circles_[firstCircleIndex]!
   const queryCircle = circles_[queryCircleIndex]!
-  const d = vec2.normalize(
+  const d = vec2Normalize(
     vec2.sub(queryCircle.center, firstCircle.center, vec2f()),
-    vec2f(),
   )
   let radius = Number.POSITIVE_INFINITY
   let index = undefined
@@ -128,7 +133,7 @@ function threeCircleTouchingRadius(
   }
 
   const c12 = vec2.sub(c2.center, c1.center, vec2f())
-  const vx = vec2.normalize(c12, vec2f())
+  const vx = vec2Normalize(c12)
   const vy = vec2Ortho(vx)
   const c13 = vec2.sub(c3.center, c1.center, vec2f())
   const cl2 = vec2.lengthSq(c13)

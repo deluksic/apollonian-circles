@@ -7,7 +7,7 @@ import {
 } from 'typegpu/experimental'
 import { v2f, Vec2f } from 'typegpu/data'
 
-const CameraContext = createContext<{
+export type CameraContext = {
   update: () => void
   bindGroup: TgpuBindGroup
   BindGroupLayout: TgpuBindGroupLayout
@@ -20,7 +20,8 @@ const CameraContext = createContext<{
     clipToWorld: (clip: v2f) => v2f
   }
   zoom: Accessor<number>
-}>()
+}
+const CameraContext = createContext<CameraContext>()
 
 export const CameraContextProvider = CameraContext.Provider
 

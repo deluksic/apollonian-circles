@@ -10,11 +10,13 @@ export const Camera2DUniforms = struct({
   viewMatrix: mat3x3f,
   viewMatrixInverse: mat3x3f,
   resolution: vec2f,
-})
+}).$name('Camera2DUniforms')
 
-export const Camera2DBindGroupLayout = tgpu.bindGroupLayout({
-  camera2DUniforms: { uniform: Camera2DUniforms },
-})
+export const Camera2DBindGroupLayout = tgpu
+  .bindGroupLayout({
+    camera2DUniforms: { uniform: Camera2DUniforms },
+  })
+  .$name('Camera2DBindGroupLayout')
 
 export const camera2DWorldToClip = tgpu
   .fn([vec2f], vec2f)

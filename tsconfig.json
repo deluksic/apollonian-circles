@@ -7,7 +7,7 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "noEmit": true,
     "noUncheckedIndexedAccess": true,
     "strict": true,
