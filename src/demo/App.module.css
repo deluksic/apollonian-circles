@@ -17,6 +17,7 @@
   position: relative;
   height: 100dvh;
   color: var(--color-text);
+  background-color: var(--color-background);
 }
 
 .controls {

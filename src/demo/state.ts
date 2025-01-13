@@ -37,14 +37,16 @@ function vec2Normalize(a: v2f) {
 //   center: vec2f(random() * 10 - 5, random() * 10 - 5),
 //   radius: random() * 0.05 + 0.05,
 // }))
-export const [circles, setCircles] = createStore<Circle[]>([])
+export const [circles, setCircles] = createSignal<Circle[]>([], {
+  equals: false,
+})
 export const [debug, setDebug] = createSignal(false)
 export const [colorScheme, setColorScheme] = createSignal(
   getPreferredColorScheme(),
 )
 
 export function chooseOrCreateCircle(xy: v2f): number {
-  const circles_ = unwrap(circles)
+  const circles_ = circles()
   const index = circles_.findIndex(
     (c) => vec2.distance(c.center, xy) < c.radius,
   )
@@ -54,13 +56,13 @@ export function chooseOrCreateCircle(xy: v2f): number {
         circles.push({ center: xy, radius: 0 })
       }),
     )
-    return circles.length - 1
+    return circles().length - 1
   }
   return index
 }
 
 export function closestFirstCircle(queryCircleIndex: number) {
-  const circles_ = unwrap(circles)
+  const circles_ = circles()
   let radius = Number.POSITIVE_INFINITY
   let index = undefined
   const { center } = circles_[queryCircleIndex]!
@@ -89,7 +91,7 @@ export function closestSecondCircle(
   firstCircleIndex: number,
   queryCircleIndex: number,
 ) {
-  const circles_ = unwrap(circles)
+  const circles_ = circles()
   const firstCircle = circles_[firstCircleIndex]!
   const queryCircle = circles_[queryCircleIndex]!
   const d = vec2Normalize(
@@ -209,13 +211,13 @@ export function closestThirdCircle(
   secondCircleIndex: number,
   queryCircleIndex: number,
 ) {
-  const circles_ = unwrap(circles)
+  const circles_ = circles()
   const queryCircle = circles_[queryCircleIndex]!
   const firstCircle = circles_[firstCircleIndex]!
   const secondCircle = circles_[secondCircleIndex]!
   let radius = Number.POSITIVE_INFINITY
   let index: number | undefined = undefined
-  for (let i = 0; i < circles.length; ++i) {
+  for (let i = 0; i < circles_.length; ++i) {
     if (
       i === queryCircleIndex ||
       i === firstCircleIndex ||
@@ -247,7 +249,7 @@ export async function growUntilRadius(
   zoom: Accessor<number>,
   stop: Promise<PointerEvent>,
 ) {
-  const circle = circles[index]!
+  const circle = circles()[index]!
   while (true) {
     const result = await Promise.race([nextAnimationFrame(), stop])
     if (result instanceof PointerEvent) {
@@ -258,13 +260,11 @@ export async function growUntilRadius(
     if (!nextCenter) {
       return
     }
-    setCircles(
-      index,
-      produce((circle) => {
-        circle.radius = nextRadius
-        circle.center = nextCenter
-      }),
-    )
+    setCircles((p) => {
+      p[index]!.radius = nextRadius
+      p[index]!.center = nextCenter
+      return p
+    })
     if (nextRadius === maxRadius) {
       return
     }

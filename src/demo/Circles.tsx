@@ -39,7 +39,7 @@ const CircleStyle = struct({
   fadeColor: vec4f,
 })
 
-const N = 10000
+const N = 100000
 const SUBDIVS = 24
 
 const uniformBindGroupLayout = tgpu.bindGroupLayout({
@@ -128,6 +128,7 @@ export function Circles(props: CirclesProps) {
   const camera = useCamera()
   const { root, device } = useRootContext()
   const { context } = useCanvas()
+  const circles = createMemo(() => props.circles)
 
   const circlesBuffer = root
     .createBuffer(arrayOf(Circle, N))
@@ -135,7 +136,7 @@ export function Circles(props: CirclesProps) {
     .$name('circles')
 
   createEffect(() => {
-    circlesBuffer.write(props.circles)
+    circlesBuffer.write(circles())
   })
 
   const colorBuffer = root
@@ -246,8 +247,8 @@ export function Circles(props: CirclesProps) {
     pass.setPipeline(pipeline)
     pass.setBindGroup(0, root.unwrap(camera.bindGroup))
     pass.setBindGroup(1, root.unwrap(uniformBindGroup))
-    if (props.circles.length > 0) {
-      pass.draw((SUBDIVS + 1) * 2, props.circles.length)
+    if (circles().length > 0) {
+      pass.draw((SUBDIVS + 1) * 2, circles().length)
     }
     pass.end()
 

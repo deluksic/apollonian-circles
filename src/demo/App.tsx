@@ -74,7 +74,7 @@ function Inside() {
       setSelectedCircleIndex(undefined)
 
       {
-        const circle = circles[index]!
+        const circle = circles()[index]!
         if (vec2.distance(circle.center, world) < circle.radius) {
           return
         }
@@ -129,7 +129,7 @@ function Inside() {
 
   return (
     <Circles
-      circles={circles.map((c, i) => ({
+      circles={circles().map((c, i) => ({
         ...c,
         styleIndex: theme().getStyleIndex(style(i)),
       }))}
@@ -142,7 +142,7 @@ function Inside() {
 export function App() {
   return (
     <div class={ui.page} classList={{ [ui[colorScheme()]]: true }}>
-      <div class={ui.circleCounter}>Number of Circles: {circles.length}</div>
+      <div class={ui.circleCounter}>Number of Circles: {circles().length}</div>
       <div class={ui.controls}>
         <label>
           <input
@@ -163,7 +163,7 @@ export function App() {
           Debug mode
         </label>
       </div>
-      <Show when={circles.length === 0}>
+      <Show when={circles().length === 0}>
         <div class={ui.welcomeMessage}>
           <h1>Apollonian Circles</h1>
           <p class={ui.welcomeMessageSubtitle}>
