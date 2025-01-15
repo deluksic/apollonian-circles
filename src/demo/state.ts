@@ -1,5 +1,4 @@
 import { Accessor, createSignal } from 'solid-js'
-import { createStore, produce, unwrap } from 'solid-js/store'
 import { vec2 } from 'wgpu-matrix'
 import { v2f, vec2f } from 'typegpu/data'
 import { getPreferredColorScheme } from '@/utils/getPreferredColorScheme'
@@ -32,10 +31,10 @@ function vec2Normalize(a: v2f) {
   return vec2f(a.x / len, a.y / len)
 }
 
-// const { random } = Math
-// const initialCircles: Circle[] = Array.from({ length: 5000 }).map(() => ({
+const { random } = Math
+// const initialCircles: Circle[] = Array.from({ length: 90000 }).map(() => ({
 //   center: vec2f(random() * 10 - 5, random() * 10 - 5),
-//   radius: random() * 0.05 + 0.05,
+//   radius: random() * 0.01 + 0.01,
 // }))
 export const [circles, setCircles] = createSignal<Circle[]>([], {
   equals: false,
@@ -51,11 +50,10 @@ export function chooseOrCreateCircle(xy: v2f): number {
     (c) => vec2.distance(c.center, xy) < c.radius,
   )
   if (index === -1) {
-    setCircles(
-      produce((circles) => {
-        circles.push({ center: xy, radius: 0 })
-      }),
-    )
+    setCircles((circles) => {
+      circles.push({ center: xy, radius: 0 })
+      return circles
+    })
     return circles().length - 1
   }
   return index

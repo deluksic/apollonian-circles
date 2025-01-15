@@ -1,4 +1,4 @@
-import tgpu from 'typegpu/experimental'
+import tgpu from 'typegpu'
 
 type Wgsl = Parameters<typeof tgpu.resolve>['0']['externals']
 

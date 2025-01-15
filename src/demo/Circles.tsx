@@ -12,8 +12,9 @@ import {
   builtin,
   location,
   interpolate,
+  sizeOf,
 } from 'typegpu/data'
-import tgpu from 'typegpu/experimental'
+import tgpu from 'typegpu'
 import { useRootContext } from '../lib/RootContext'
 import { useCanvas } from '../lib/CanvasContext'
 import { premultipliedAlphaBlend } from '../utils/blendModes'
@@ -47,13 +48,13 @@ const uniformBindGroupLayout = tgpu.bindGroupLayout({
   styles: { storage: (length) => arrayOf(CircleStyle, length) },
 })
 
-const linearstep = tgpu.fn([f32, f32, f32], f32).does(/* wgsl */ `
+const linearstep = tgpu['~unstable'].fn([f32, f32, f32], f32).does(/* wgsl */ `
   (edge0: f32, edge1: f32, x: f32) -> f32 {
     return clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
   }`)
 
 const circleVertexShader = (camera: CameraContext) =>
-  tgpu
+  tgpu['~unstable']
     .fn([u32, u32], VertexOutput)
     .does(
       /* wgsl */ `
@@ -91,7 +92,7 @@ const circleVertexShader = (camera: CameraContext) =>
       clipToPixels: camera.wgsl.clipToPixels,
     })
 
-const fadeFragmentShader = tgpu
+const fadeFragmentShader = tgpu['~unstable']
   .fn([VertexOutput], vec4f)
   .does(
     /* wgsl */ `
@@ -128,15 +129,36 @@ export function Circles(props: CirclesProps) {
   const camera = useCamera()
   const { root, device } = useRootContext()
   const { context } = useCanvas()
-  const circles = createMemo(() => props.circles)
 
   const circlesBuffer = root
     .createBuffer(arrayOf(Circle, N))
     .$usage('storage')
     .$name('circles')
 
+  // TODO switch to this version when typegpu is fast
+  // createEffect(() => {
+  //   const { circles } = props
+  //   circlesBuffer.write(circles)
+  // })
+
   createEffect(() => {
-    circlesBuffer.write(circles())
+    const { circles } = props
+    const circleSize = sizeOf(Circle)
+    const view = new DataView(new ArrayBuffer(circleSize * circles.length))
+    for (let i = 0, offset = 0; i < circles.length; ++i, offset += circleSize) {
+      const circle = circles[i]!
+      view.setFloat32(offset + 0, circle.center[0]!, true)
+      view.setFloat32(offset + 4, circle.center[1]!, true)
+      view.setFloat32(offset + 8, circle.radius, true)
+      view.setUint32(offset + 12, circle.styleIndex, true)
+    }
+    device.queue.writeBuffer(
+      circlesBuffer.buffer,
+      0,
+      view,
+      0,
+      view.buffer.byteLength,
+    )
   })
 
   const colorBuffer = root
@@ -223,6 +245,7 @@ export function Circles(props: CirclesProps) {
   })
 
   const render = () => {
+    const { circles } = props
     const { pipeline, uniformBindGroup } = stuff()
     // Get the current texture from the canvas context and
     // set it as the texture to render to.
@@ -247,8 +270,8 @@ export function Circles(props: CirclesProps) {
     pass.setPipeline(pipeline)
     pass.setBindGroup(0, root.unwrap(camera.bindGroup))
     pass.setBindGroup(1, root.unwrap(uniformBindGroup))
-    if (circles().length > 0) {
-      pass.draw((SUBDIVS + 1) * 2, circles().length)
+    if (circles.length > 0) {
+      pass.draw((SUBDIVS + 1) * 2, circles.length)
     }
     pass.end()
 

@@ -1,5 +1,5 @@
 import { mat3x3f, mat4x4f, struct, v2f, vec2f, vec3f } from 'typegpu/data'
-import tgpu from 'typegpu/experimental'
+import tgpu from 'typegpu'
 import { CameraContextProvider } from './CameraContext'
 import { createMemo, ParentProps } from 'solid-js'
 import { useCanvas } from './CanvasContext'
@@ -18,7 +18,7 @@ export const Camera2DBindGroupLayout = tgpu
   })
   .$name('Camera2DBindGroupLayout')
 
-export const camera2DWorldToClip = tgpu
+export const camera2DWorldToClip = tgpu['~unstable']
   .fn([vec2f], vec2f)
   .does(
     /* wgsl */ `(world: vec2f) -> vec2f {
@@ -29,7 +29,7 @@ export const camera2DWorldToClip = tgpu
   .$uses({ ...Camera2DBindGroupLayout.bound })
   .$name('camera2DWorldToClip')
 
-export const camera2DClipToWorld = tgpu
+export const camera2DClipToWorld = tgpu['~unstable']
   .fn([vec2f], vec2f)
   .does(
     /* wgsl */ `(clip: vec2f) -> vec2f {
@@ -40,7 +40,7 @@ export const camera2DClipToWorld = tgpu
   .$uses({ ...Camera2DBindGroupLayout.bound })
   .$name('camera2DClipToWorld')
 
-export const camera2DClipToPixels = tgpu
+export const camera2DClipToPixels = tgpu['~unstable']
   .fn([vec2f], vec2f)
   .does(
     /* wgsl */ `(clip: vec2f) -> vec2f {

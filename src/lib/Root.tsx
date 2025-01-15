@@ -1,5 +1,5 @@
 import { createResource, onCleanup, ParentProps, Show } from 'solid-js'
-import { tgpu } from 'typegpu/experimental'
+import { tgpu } from 'typegpu'
 import { RootContextProvider } from './RootContext'
 
 type RootProps = {

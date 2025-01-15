@@ -111,28 +111,40 @@ function Inside() {
 
   const theme = createMemo(() => getTheme(colorScheme()))
 
-  function style(circleIndex: number): CircleStyleType {
-    if (circleIndex === selectedCircleIndex()) {
-      return 'selected'
-    } else if (debug()) {
-      switch (circleIndex) {
-        case firstCircleIndex():
-          return 'debugFirst'
-        case secondCircleIndex():
-          return 'debugSecond'
-        case thirdCircleIndex():
-          return 'debugThird'
+  const styledCircles = createMemo(() => {
+    // read these up front because it's slow to do it thousands of times
+    const theme_ = theme()
+    const first = firstCircleIndex()
+    const second = secondCircleIndex()
+    const third = thirdCircleIndex()
+    const selected = selectedCircleIndex()
+
+    function style(circleIndex: number): CircleStyleType {
+      if (circleIndex === selected) {
+        return 'selected'
+      } else if (debug()) {
+        switch (circleIndex) {
+          case first:
+            return 'debugFirst'
+          case second:
+            return 'debugSecond'
+          case third:
+            return 'debugThird'
+        }
       }
+      return 'normal'
     }
-    return 'normal'
-  }
+
+    return circles().map((c, i) => ({
+      center: c.center,
+      radius: c.radius,
+      styleIndex: theme_.getStyleIndex(style(i)),
+    }))
+  })
 
   return (
     <Circles
-      circles={circles().map((c, i) => ({
-        ...c,
-        styleIndex: theme().getStyleIndex(style(i)),
-      }))}
+      circles={styledCircles()}
       clearColor={colorScheme() === 'light' ? [1, 1, 1, 1] : [0, 0, 0, 1]}
       styles={theme().styles}
     />
