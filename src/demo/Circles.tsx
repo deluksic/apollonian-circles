@@ -85,7 +85,6 @@ const circleVertexShader = (camera: CameraContext) =>
   `,
     )
     .$uses({
-      VertexOutput,
       ...camera.BindGroupLayout.bound,
       circles: uniformBindGroupLayout.bound.circles,
       worldToClip: camera.wgsl.worldToClip,
@@ -113,7 +112,6 @@ const fadeFragmentShader = tgpu['~unstable']
   `,
   )
   .$uses({
-    VertexOutput,
     styles: uniformBindGroupLayout.bound.styles,
     linearstep,
   })
@@ -236,7 +234,7 @@ export function Circles(props: CirclesProps) {
       },
     })
 
-    const uniformBindGroup = uniformBindGroupLayout.populate({
+    const uniformBindGroup = root.createBindGroup(uniformBindGroupLayout, {
       circles: circlesBuffer.buffer,
       styles: stylesBuffer.buffer,
     })
