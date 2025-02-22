@@ -8,59 +8,18 @@ import { wgsl } from './utils/wgsl'
 import tgpu from 'typegpu'
 import { createAnimationFrame } from './utils/createAnimationFrame'
 import { createEffect, onCleanup } from 'solid-js'
+import { premultipliedAlphaBlend } from './utils/blendModes'
+import { random } from './shaders/random'
 
-const { ceil, random } = Math
+const { ceil } = Math
 
-function randomBell() {
-  return (random() + random() + random() + random() + random() + random()) / 6
-}
-
-const CLEAR_GROUP_SIZE = 32
+const CLEAR_GROUP_SIZE = 8
 const IFS_GROUP_SIZE = 32
 const POINT_COUNT = 5e6
 
 const Point = d.struct({
   position: d.vec2f,
 })
-
-const Texel = d.struct({
-  count: d.u32,
-  hue: d.f32,
-  sat: d.f32,
-})
-
-// const random = tgpu['~unstable'].fn([d.u32], d.f32).does(/* wgsl */ `
-//   (i: u32) -> f32 {
-//     var x = i ^ (i >> 17);
-//     x *= 0xed5ad4bbu;
-//     x ^= x >> 11;
-//     x *= 0xac4c1b51u;
-//     x ^= x >> 15;
-//     x *= 0x31848babu;
-//     x ^= x >> 14;
-//     return f32(x) / f32(0xffffffffu);
-//   }
-// `)
-
-const random2 = tgpu['~unstable'].fn([d.vec2u], d.f32).does(/* wgsl */ `
-  (i: vec2u) -> f32 {
-    var x = i.x ^ (i.x >> 17);
-    x *= 0xed5ad4bbu;
-    x ^= x >> 11;
-    x *= 0xac4c1b51u;
-    x ^= x >> 15;
-    x *= 0x31848babu;
-    x ^= x >> 14;
-    var y = i.y ^ (x >> 17);
-    y *= 0xed5ad4bbu;
-    y ^= y >> 11;
-    y *= 0xac4c1b51u;
-    y ^= y >> 15;
-    y *= 0x31848babu;
-    y ^= y >> 14;
-    return f32(y) / f32(0xffffffffu);
-  }
-`)
 
 const bindGroupLayout = tgpu.bindGroupLayout({
   points: {
@@ -73,7 +32,7 @@ const bindGroupLayout = tgpu.bindGroupLayout({
     visibility: ['compute', 'fragment'],
   },
   outputTextureSize: {
-    uniform: d.vec2u,
+    uniform: d.vec2f,
     visibility: ['compute', 'fragment'],
   },
 })
@@ -92,17 +51,12 @@ function Flam3() {
       .createBuffer(d.arrayOf(Point, POINT_COUNT))
       .$usage('storage')
 
-    points.write(
-      Array.from({ length: POINT_COUNT }).map(() => ({
-        position: d.vec2f(randomBell(), randomBell()),
-      })),
-    )
     onCleanup(() => {
       points.destroy()
     })
 
     const outputTextureSize = root
-      .createBuffer(d.vec2u, d.vec2u(width, height))
+      .createBuffer(d.vec2f, d.vec2f(width, height))
       .$usage('uniform')
     onCleanup(() => {
       outputTextureSize.destroy()
@@ -125,21 +79,12 @@ function Flam3() {
     const clearTextureBufferShaderCode = wgsl/* wgsl */ `
       ${{ ...bindGroupLayout.bound }}
 
-      @compute @workgroup_size(${CLEAR_GROUP_SIZE}, 1, 1) fn computeSomething(
-        @builtin(num_workgroups) num_workgroups: vec3<u32>,
-        @builtin(workgroup_id) workgroup_id : vec3<u32>,
-        @builtin(local_invocation_index) local_invocation_index: u32
+      @compute @workgroup_size(${CLEAR_GROUP_SIZE}, ${CLEAR_GROUP_SIZE}, 1) fn computeSomething(
+        @builtin(workgroup_id) workgroup_id : vec3u,
+        @builtin(local_invocation_id) local_invocation_id: vec3u
       ) {
-        let workgroup_index =
-          workgroup_id.x +
-          workgroup_id.y * num_workgroups.x +
-          workgroup_id.z * num_workgroups.x * num_workgroups.y;
-    
-        let global_invocation_index = workgroup_index * ${CLEAR_GROUP_SIZE} + local_invocation_index;
-        let x = global_invocation_index % outputTextureSize.x;
-        let y = global_invocation_index / outputTextureSize.x;
-
-        textureStore(outputTexture, vec2u(x, y), vec4u(0));
+        let pixelPosition = workgroup_id.xy * vec2u(${CLEAR_GROUP_SIZE}) + local_invocation_id.xy;
+        textureStore(outputTexture, pixelPosition, vec4u(0));
       }
     `
 
@@ -153,6 +98,40 @@ function Flam3() {
       }),
       compute: {
         module: clearTextureBufferModule,
+      },
+    })
+
+    const initPointsShaderCode = wgsl/* wgsl */ `
+    ${{ ...bindGroupLayout.bound, random }}
+  
+    @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn computeSomething(
+      @builtin(num_workgroups) num_workgroups: vec3<u32>,
+      @builtin(workgroup_id) workgroup_id : vec3<u32>,
+      @builtin(local_invocation_index) local_invocation_index: u32
+    ) {
+      let workgroup_index =
+        workgroup_id.x +
+        workgroup_id.y * num_workgroups.x +
+        workgroup_id.z * num_workgroups.x * num_workgroups.y;
+  
+      let i = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
+      points[i].position = vec2f(
+        random(i) + random(i << 4) + random(i << 8),
+        random(i << 5) + random(i << 9) + random(i << 17)
+      ) / 3;
+    }
+  `
+
+    const initPointsModule = device.createShaderModule({
+      code: initPointsShaderCode,
+    })
+
+    const initPointsPipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({
+        bindGroupLayouts: [root.unwrap(bindGroupLayout)],
+      }),
+      compute: {
+        module: initPointsModule,
       },
     })
 
@@ -171,18 +150,19 @@ function Flam3() {
   
       let i = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
 
-      let p = (points[i].position - vec2(0.5));
-      let speed = vec2f(-p.y, p.x);
-      points[i].position += 0.0005 * speed / dot(speed, speed);
+      var position = points[i].position;
+      for(var i = 0; i < 1; i += 1) {
+        let p = (position - vec2(0.5));
+        let speed = vec2f(-p.y, p.x);
+        position += 0.0005 * speed / dot(speed, speed);
 
-      let pixelPosition = vec2u(points[i].position * vec2f(outputTextureSize));
-      if (pixelPosition.x < 0 || pixelPosition.x >= outputTextureSize.x ||
-          pixelPosition.y < 0 || pixelPosition.y >= outputTextureSize.y) {
-        return;
+        let pixelPosition = vec2i(position * outputTextureSize);
+        let prevCount = textureLoad(outputTexture, pixelPosition);
+        textureStore(outputTexture, pixelPosition, prevCount + 1);
       }
 
-      let prevCount = textureLoad(outputTexture, pixelPosition);
-      textureStore(outputTexture, pixelPosition, prevCount + 1);
+      // write back the point
+      points[i].position = position;
     }
   `
 
@@ -202,7 +182,6 @@ function Flam3() {
     const renderShaderCode = wgsl/* wgsl */ `
       ${{
         outputTexture: bindGroupLayout.bound.outputTexture,
-        outputTextureSize: bindGroupLayout.bound.outputTextureSize,
       }}
 
       @vertex fn vs(
@@ -219,14 +198,8 @@ function Flam3() {
 
       @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
         let pos2u = vec2u(pos.xy);
-        if (pos2u.x >= outputTextureSize.x || pos2u.y >= outputTextureSize.y) {
-          discard;
-        }
         let count = f32(textureLoad(outputTexture, pos2u).x);
-        if (count == 0) {
-          discard;
-        }
-        return vec4f(vec3f(count / 5, count / 6, count / 8), 1.0);
+        return vec4f(vec3f(count / 10, count / 12, count / 20), count / 10);
       }
     `
 
@@ -246,10 +219,28 @@ function Flam3() {
         targets: [
           {
             format: navigator.gpu.getPreferredCanvasFormat(),
+            blend: premultipliedAlphaBlend,
           },
         ],
       },
     })
+
+    {
+      const encoder = device.createCommandEncoder()
+      {
+        const pass = encoder.beginComputePass()
+        pass.setPipeline(initPointsPipeline)
+        pass.setBindGroup(0, root.unwrap(bindGroup))
+        pass.dispatchWorkgroups(
+          POINT_COUNT / (IFS_GROUP_SIZE * IFS_GROUP_SIZE),
+          IFS_GROUP_SIZE,
+          1,
+        )
+        pass.end()
+      }
+
+      device.queue.submit([encoder.finish()])
+    }
 
     createAnimationFrame(() => {
       // Encode commands to do the computation
@@ -261,7 +252,7 @@ function Flam3() {
         pass.dispatchWorkgroups(
           ceil(width / CLEAR_GROUP_SIZE),
           ceil(height / CLEAR_GROUP_SIZE),
-          CLEAR_GROUP_SIZE,
+          1,
         )
         pass.setPipeline(ifsPipeline)
         pass.setBindGroup(0, root.unwrap(bindGroup))
@@ -278,7 +269,7 @@ function Flam3() {
             {
               loadOp: 'clear',
               storeOp: 'store',
-              clearValue: [0.5, 0.8, 1, 1],
+              clearValue: [0, 0, 0, 1],
               view: context.getCurrentTexture().createView(),
             },
           ],
@@ -299,7 +290,7 @@ export function App() {
   return (
     <div class={ui.fullscreen}>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
-        <AutoCanvas>
+        <AutoCanvas class={ui.canvas} pixelRatio={1 / window.devicePixelRatio}>
           <Flam3 />
         </AutoCanvas>
       </Root>

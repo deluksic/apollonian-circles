@@ -39,8 +39,8 @@ export function useElementSize(
         widthPX,
         heightPX,
       }
-      setSize(newSize)
       onChange?.(newSize)
+      setSize(newSize)
     })
     observer.observe(t)
     onCleanup(() => {

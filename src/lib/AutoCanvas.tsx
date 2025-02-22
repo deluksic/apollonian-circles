@@ -7,6 +7,7 @@ const { min, max } = Math
 
 type AutoCanvasProps = {
   class?: string
+  pixelRatio?: number
 }
 
 export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
@@ -17,6 +18,8 @@ export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
     if (!el) {
       return
     }
+    size.widthPX *= props.pixelRatio ?? 1
+    size.heightPX *= props.pixelRatio ?? 1
     el.width = max(1, min(size.widthPX, device.limits.maxTextureDimension2D))
     el.height = max(1, min(size.heightPX, device.limits.maxTextureDimension2D))
   })
