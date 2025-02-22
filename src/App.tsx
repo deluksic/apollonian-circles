@@ -29,17 +29,50 @@ const Texel = d.struct({
   sat: d.f32,
 })
 
+// const random = tgpu['~unstable'].fn([d.u32], d.f32).does(/* wgsl */ `
+//   (i: u32) -> f32 {
+//     var x = i ^ (i >> 17);
+//     x *= 0xed5ad4bbu;
+//     x ^= x >> 11;
+//     x *= 0xac4c1b51u;
+//     x ^= x >> 15;
+//     x *= 0x31848babu;
+//     x ^= x >> 14;
+//     return f32(x) / f32(0xffffffffu);
+//   }
+// `)
+
+const random2 = tgpu['~unstable'].fn([d.vec2u], d.f32).does(/* wgsl */ `
+  (i: vec2u) -> f32 {
+    var x = i.x ^ (i.x >> 17);
+    x *= 0xed5ad4bbu;
+    x ^= x >> 11;
+    x *= 0xac4c1b51u;
+    x ^= x >> 15;
+    x *= 0x31848babu;
+    x ^= x >> 14;
+    var y = i.y ^ (x >> 17);
+    y *= 0xed5ad4bbu;
+    y ^= y >> 11;
+    y *= 0xac4c1b51u;
+    y ^= y >> 15;
+    y *= 0x31848babu;
+    y ^= y >> 14;
+    return f32(y) / f32(0xffffffffu);
+  }
+`)
+
 const bindGroupLayout = tgpu.bindGroupLayout({
   points: {
     storage: (length: number) => d.arrayOf(Point, length),
     access: 'mutable',
   },
-  textureBuffer: {
-    storage: (length: number) => d.arrayOf(Texel, length),
+  outputTexture: {
+    storageTexture: 'r32uint',
     access: 'mutable',
     visibility: ['compute', 'fragment'],
   },
-  textureSize: {
+  outputTextureSize: {
     uniform: d.vec2u,
     visibility: ['compute', 'fragment'],
   },
@@ -58,6 +91,7 @@ function Flam3() {
     const points = root
       .createBuffer(d.arrayOf(Point, POINT_COUNT))
       .$usage('storage')
+
     points.write(
       Array.from({ length: POINT_COUNT }).map(() => ({
         position: d.vec2f(randomBell(), randomBell()),
@@ -66,43 +100,48 @@ function Flam3() {
     onCleanup(() => {
       points.destroy()
     })
-    const textureSize = root
+
+    const outputTextureSize = root
       .createBuffer(d.vec2u, d.vec2u(width, height))
       .$usage('uniform')
     onCleanup(() => {
-      textureSize.destroy()
+      outputTextureSize.destroy()
     })
-    const textureBuffer = root
-      .createBuffer(d.arrayOf(Texel, width * height))
+
+    const outputTexture = root['~unstable']
+      .createTexture({
+        format: 'r32uint',
+        size: [width, height],
+      })
       .$usage('storage')
-    onCleanup(() => textureBuffer.destroy())
+    onCleanup(() => outputTexture.destroy())
 
     const bindGroup = root.createBindGroup(bindGroupLayout, {
       points,
-      textureBuffer,
-      textureSize,
+      outputTexture,
+      outputTextureSize,
     })
 
     const clearTextureBufferShaderCode = wgsl/* wgsl */ `
-    ${{
-      ...bindGroupLayout.bound,
-    }}
-  
-    @compute @workgroup_size(${CLEAR_GROUP_SIZE}, 1, 1) fn computeSomething(
-      @builtin(num_workgroups) num_workgroups: vec3<u32>,
-      @builtin(workgroup_id) workgroup_id : vec3<u32>,
-      @builtin(local_invocation_index) local_invocation_index: u32
-    ) {
-      let workgroup_index =
-        workgroup_id.x +
-        workgroup_id.y * num_workgroups.x +
-        workgroup_id.z * num_workgroups.x * num_workgroups.y;
-  
-      let global_invocation_index = workgroup_index * ${CLEAR_GROUP_SIZE} + local_invocation_index;
+      ${{ ...bindGroupLayout.bound }}
 
-      textureBuffer[global_invocation_index].count = 0;
-    }
-  `
+      @compute @workgroup_size(${CLEAR_GROUP_SIZE}, 1, 1) fn computeSomething(
+        @builtin(num_workgroups) num_workgroups: vec3<u32>,
+        @builtin(workgroup_id) workgroup_id : vec3<u32>,
+        @builtin(local_invocation_index) local_invocation_index: u32
+      ) {
+        let workgroup_index =
+          workgroup_id.x +
+          workgroup_id.y * num_workgroups.x +
+          workgroup_id.z * num_workgroups.x * num_workgroups.y;
+    
+        let global_invocation_index = workgroup_index * ${CLEAR_GROUP_SIZE} + local_invocation_index;
+        let x = global_invocation_index % outputTextureSize.x;
+        let y = global_invocation_index / outputTextureSize.x;
+
+        textureStore(outputTexture, vec2u(x, y), vec4u(0));
+      }
+    `
 
     const clearTextureBufferModule = device.createShaderModule({
       code: clearTextureBufferShaderCode,
@@ -118,9 +157,7 @@ function Flam3() {
     })
 
     const ifsShaderCode = wgsl/* wgsl */ `
-    ${{
-      ...bindGroupLayout.bound,
-    }}
+    ${{ ...bindGroupLayout.bound }}
   
     @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn computeSomething(
       @builtin(num_workgroups) num_workgroups: vec3<u32>,
@@ -134,19 +171,18 @@ function Flam3() {
   
       let i = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
 
-      let pos = vec2u(points[i].position * vec2f(textureSize));
-
-      if (pos.x < 0 || pos.x >= textureSize.x || pos.y < 0 || pos.y >= textureSize.y) {
-        return;
-      }
-
-      let index = pos.y * textureSize.x + pos.x;
-
       let p = (points[i].position - vec2(0.5));
       let speed = vec2f(-p.y, p.x);
       points[i].position += 0.0005 * speed / dot(speed, speed);
 
-      textureBuffer[index].count += 1;
+      let pixelPosition = vec2u(points[i].position * vec2f(outputTextureSize));
+      if (pixelPosition.x < 0 || pixelPosition.x >= outputTextureSize.x ||
+          pixelPosition.y < 0 || pixelPosition.y >= outputTextureSize.y) {
+        return;
+      }
+
+      let prevCount = textureLoad(outputTexture, pixelPosition);
+      textureStore(outputTexture, pixelPosition, prevCount + 1);
     }
   `
 
@@ -164,36 +200,35 @@ function Flam3() {
     })
 
     const renderShaderCode = wgsl/* wgsl */ `
-    ${{
-      textureBuffer: bindGroupLayout.bound.textureBuffer,
-      textureSize: bindGroupLayout.bound.textureSize,
-    }}
+      ${{
+        outputTexture: bindGroupLayout.bound.outputTexture,
+        outputTextureSize: bindGroupLayout.bound.outputTextureSize,
+      }}
 
-    @vertex fn vs(
-      @builtin(vertex_index) vertexIndex : u32
-    ) -> @builtin(position) vec4f {
-      let pos = array(
-        vec2f(-1, -1),
-        vec2f(3, -1),
-        vec2f(-1, 3)
-      );
+      @vertex fn vs(
+        @builtin(vertex_index) vertexIndex : u32
+      ) -> @builtin(position) vec4f {
+        let pos = array(
+          vec2f(-1, -1),
+          vec2f(3, -1),
+          vec2f(-1, 3)
+        );
 
-      return vec4f(pos[vertexIndex], 0.0, 1.0);
-    }
-
-    @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
-      let pos2u = vec2u(pos.xy);
-      if (pos2u.x >= textureSize.x || pos2u.y >= textureSize.y) {
-        discard;
+        return vec4f(pos[vertexIndex], 0.0, 1.0);
       }
-      let index = pos2u.y * textureSize.x + pos2u.x;
-      let count = f32(textureBuffer[index].count);
-      if (count == 0) {
-        discard;
+
+      @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+        let pos2u = vec2u(pos.xy);
+        if (pos2u.x >= outputTextureSize.x || pos2u.y >= outputTextureSize.y) {
+          discard;
+        }
+        let count = f32(textureLoad(outputTexture, pos2u).x);
+        if (count == 0) {
+          discard;
+        }
+        return vec4f(vec3f(count / 5, count / 6, count / 8), 1.0);
       }
-      return vec4f(vec3f(count / 5, count / 6, count / 8), 1.0);
-    }
-  `
+    `
 
     const renderModule = device.createShaderModule({
       code: renderShaderCode,
@@ -243,7 +278,7 @@ function Flam3() {
             {
               loadOp: 'clear',
               storeOp: 'store',
-              clearValue: [0, 0.2, 0.4, 1],
+              clearValue: [0.5, 0.8, 1, 1],
               view: context.getCurrentTexture().createView(),
             },
           ],
