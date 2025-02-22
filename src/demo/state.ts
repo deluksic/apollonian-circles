@@ -32,11 +32,11 @@ function vec2Normalize(a: v2f) {
 }
 
 const { random } = Math
-// const initialCircles: Circle[] = Array.from({ length: 90000 }).map(() => ({
-//   center: vec2f(random() * 10 - 5, random() * 10 - 5),
-//   radius: random() * 0.01 + 0.01,
-// }))
-export const [circles, setCircles] = createSignal<Circle[]>([], {
+const initialCircles: Circle[] = Array.from({ length: 50000 }).map(() => ({
+  center: vec2f(random() * 10 - 5, random() * 10 - 5),
+  radius: random() * 0.01 + 0.01,
+}))
+export const [circles, setCircles] = createSignal<Circle[]>(initialCircles, {
   equals: false,
 })
 export const [debug, setDebug] = createSignal(false)

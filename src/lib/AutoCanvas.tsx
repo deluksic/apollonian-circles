@@ -6,7 +6,7 @@ import { useRootContext } from './RootContext'
 const { min, max } = Math
 
 type AutoCanvasProps = {
-  class: string
+  class?: string
 }
 
 export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {

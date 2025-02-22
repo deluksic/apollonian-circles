@@ -118,11 +118,12 @@ function Inside() {
     const second = secondCircleIndex()
     const third = thirdCircleIndex()
     const selected = selectedCircleIndex()
+    const debug_ = debug()
 
     function style(circleIndex: number): CircleStyleType {
       if (circleIndex === selected) {
         return 'selected'
-      } else if (debug()) {
+      } else if (debug_) {
         switch (circleIndex) {
           case first:
             return 'debugFirst'

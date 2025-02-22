@@ -6,6 +6,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
+    "allowJs": false,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noEmit": true,

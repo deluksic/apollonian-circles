@@ -1,6 +1,6 @@
 import { createContext } from 'solid-js'
 import { useContextSafe } from '@/utils/useContextSafe'
-import { TgpuRoot } from 'typegpu/experimental'
+import { TgpuRoot } from 'typegpu'
 
 const RootContext = createContext<{
   adapter: GPUAdapter

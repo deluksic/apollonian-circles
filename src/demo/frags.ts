@@ -1,4 +1,4 @@
-import tgpu from 'typegpu/experimental'
+import tgpu from 'typegpu'
 import { struct, builtin, vec2f, vec4f, location, f32 } from 'typegpu/data'
 
 const VertexOutput = struct({
@@ -7,7 +7,7 @@ const VertexOutput = struct({
   innerRatio: location(1, f32),
 })
 
-const frag = tgpu.fn([VertexOutput], vec4f)
+const frag = tgpu['~unstable'].fn([VertexOutput], vec4f)
 
 const frag1 = frag
   .does(

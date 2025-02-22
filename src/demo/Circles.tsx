@@ -19,6 +19,7 @@ import { useRootContext } from '../lib/RootContext'
 import { useCanvas } from '../lib/CanvasContext'
 import { premultipliedAlphaBlend } from '../utils/blendModes'
 import { CameraContext, useCamera } from '../lib/CameraContext'
+import { compileWriterForSchema } from '@/compileWriterForSchema'
 
 const VertexOutput = struct({
   position: builtin.position,
@@ -27,12 +28,15 @@ const VertexOutput = struct({
   styleIndex: location(2, interpolate('flat, either', u32)),
 })
 
-type Circle = Infer<typeof Circle>
-const Circle = struct({
+export type Circle = Infer<typeof Circle>
+export const Circle = struct({
   center: vec2f,
   radius: f32,
   styleIndex: u32,
 }).$name('Circle')
+
+const writer = compileWriterForSchema(Circle)
+console.log(writer)
 
 export type CircleStyle = Infer<typeof CircleStyle>
 const CircleStyle = struct({
@@ -44,8 +48,8 @@ const N = 100000
 const SUBDIVS = 24
 
 const uniformBindGroupLayout = tgpu.bindGroupLayout({
-  circles: { storage: (length) => arrayOf(Circle, length) },
-  styles: { storage: (length) => arrayOf(CircleStyle, length) },
+  circles: { storage: (length: number) => arrayOf(Circle, length) },
+  styles: { storage: (length: number) => arrayOf(CircleStyle, length) },
 })
 
 const linearstep = tgpu['~unstable'].fn([f32, f32, f32], f32).does(/* wgsl */ `
@@ -142,20 +146,18 @@ export function Circles(props: CirclesProps) {
   createEffect(() => {
     const { circles } = props
     const circleSize = sizeOf(Circle)
-    const view = new DataView(new ArrayBuffer(circleSize * circles.length))
+    const buffer = new ArrayBuffer(circleSize * circles.length)
+    const view = new DataView(buffer)
     for (let i = 0, offset = 0; i < circles.length; ++i, offset += circleSize) {
       const circle = circles[i]!
-      view.setFloat32(offset + 0, circle.center[0]!, true)
-      view.setFloat32(offset + 4, circle.center[1]!, true)
-      view.setFloat32(offset + 8, circle.radius, true)
-      view.setUint32(offset + 12, circle.styleIndex, true)
+      writer(view, offset, circle)
     }
     device.queue.writeBuffer(
       circlesBuffer.buffer,
       0,
-      view,
+      buffer,
       0,
-      view.buffer.byteLength,
+      buffer.byteLength,
     )
   })
 
