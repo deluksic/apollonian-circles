@@ -14,12 +14,19 @@ export function createClearTexturePipeline(
   const clearTextureBufferShaderCode = wgsl/* wgsl */ `
       ${{ ...bindGroup.layout.bound }}
 
+      fn ceildiv(x: u32, y: u32) -> u32 {
+        return x / y + u32(x % y != 0);
+      }
+
       @compute @workgroup_size(${CLEAR_GROUP_SIZE}, ${CLEAR_GROUP_SIZE}, 1) fn computeSomething(
         @builtin(workgroup_id) workgroup_id : vec3u,
         @builtin(local_invocation_id) local_invocation_id: vec3u
       ) {
         let pixelPosition = workgroup_id.xy * vec2u(${CLEAR_GROUP_SIZE}) + local_invocation_id.xy;
-        textureStore(outputTexture, pixelPosition, vec4u(0));
+        let prev = textureLoad(outputTexture, pixelPosition).x;
+        textureStore(outputTexture, pixelPosition, vec4u(prev - ceildiv(prev, 12)));
+        // // uncomment to clear fully
+        // textureStore(outputTexture, pixelPosition, vec4u(0));
       }
     `
 

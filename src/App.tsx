@@ -8,14 +8,15 @@ import { wgsl } from './utils/wgsl'
 import { createAnimationFrame } from './utils/createAnimationFrame'
 import { createEffect, onCleanup } from 'solid-js'
 import { createClearTexturePipeline } from './flame/clearTexture'
-import { bindGroupLayout, Point } from './flame/types'
+import { bindGroupLayout, ComputeUniforms, Point } from './flame/types'
 import { createColorGradingPipeline } from './flame/colorGrading'
 import { createInitPointsPipeline } from './flame/initPoints'
 import { WheelZoomCamera2D } from './lib/WheelZoomCamera2D'
 import { useCamera } from './lib/CameraContext'
+import { hash } from './shaders/random'
 
 const IFS_GROUP_SIZE = 32
-const POINT_COUNT = 10e6
+const POINT_COUNT = 1e6
 
 function Flam3() {
   const camera = useCamera()
@@ -44,9 +45,14 @@ function Flam3() {
       .$usage('storage')
     onCleanup(() => outputTexture.destroy())
 
+    const uniformBuffer = root
+      .createBuffer(ComputeUniforms, { seed: 0 })
+      .$usage('uniform')
+
     const bindGroup = root.createBindGroup(bindGroupLayout, {
       points,
       outputTexture,
+      computeUniforms: uniformBuffer,
     })
 
     const runInitPoints = createInitPointsPipeline(root, bindGroup, POINT_COUNT)
@@ -62,7 +68,16 @@ function Flam3() {
         ...camera.BindGroupLayout.bound,
         ...bindGroupLayout.bound,
         worldToClip: camera.wgsl.worldToClip,
+        hash,
       }}
+
+      fn draw(position: vec2f) {
+        let outputTextureSize = vec2f(textureDimensions(outputTexture));
+        let clip = worldToClip(position);
+        let pixelPosition = vec2i(0.5 * (clip * vec2f(1, -1) + 1) * outputTextureSize);
+        let prevCount = textureLoad(outputTexture, pixelPosition);
+        textureStore(outputTexture, pixelPosition, prevCount + 1);
+      }
     
       @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn computeSomething(
         @builtin(num_workgroups) num_workgroups: vec3<u32>,
@@ -76,21 +91,28 @@ function Flam3() {
     
         let global_invocation_index = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
 
-        let outputTextureSize = vec2f(textureDimensions(outputTexture));
-
         var position = points[global_invocation_index].position;
 
-        let speed = vec2f(-position.y, position.x);
-        position += 0.0005 * speed / dot(speed, speed);
-        let affine = mat3x2f(1, 0, 0, 0, 1, 0);
+        // let speed = vec2f(-position.y, position.x);
+        // position += 0.0005 * speed / dot(speed, speed);
+        // let affine = mat3x2f(1, 0, 0, 1, 0, 0);
+        let affine1 = mat3x2f(0.5, 0,   0, 0.5,   0.5, 0);
+        let affine2 = mat3x2f(0.5, 0,   0, 0.5,   0, 0.5);
+        let affine3 = mat3x2f(0.5, 0,   0, 0.5,   0, 0);
+        let trans = array(affine1, affine2, affine3);
 
-        let clip = worldToClip(position);
-        let pixelPosition = vec2i(0.5 * (clip * vec2f(1, -1) + 1) * outputTextureSize);
-        let prevCount = textureLoad(outputTexture, pixelPosition);
-        textureStore(outputTexture, pixelPosition, prevCount + 1);
+        var seed = computeUniforms.seed ^ hash(workgroup_index);
+        for(var i = 0; i < 16; i += 1) {
+          seed = hash(seed);
+          let affine = trans[seed % 3];
+          position = affine * vec3f(position, 1.);
+          if (i >= 8) {
+            draw(position);
+          }
+        }
 
         // write back the point
-        points[global_invocation_index].position = position;
+        // points[global_invocation_index].position = position;
       }
     `
 
@@ -121,6 +143,7 @@ function Flam3() {
 
     createAnimationFrame(() => {
       camera.update()
+      uniformBuffer.write({ seed: Math.random() * 0xffff })
       // Encode commands to do the computation
       const encoder = device.createCommandEncoder()
       {
@@ -149,7 +172,7 @@ export function App() {
   return (
     <div class={ui.fullscreen}>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
-        <AutoCanvas class={ui.canvas} pixelRatio={1 / window.devicePixelRatio}>
+        <AutoCanvas class={ui.canvas} pixelRatio={0.5}>
           <WheelZoomCamera2D>
             <Flam3 />
           </WheelZoomCamera2D>
