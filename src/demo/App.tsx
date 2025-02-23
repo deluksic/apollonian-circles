@@ -26,7 +26,7 @@ import { createPromiseCallbacks } from '@/utils/createPromiseCallbacks'
 import { vec2 } from 'wgpu-matrix'
 import { Root } from '@/lib/Root'
 import { AutoCanvas } from '@/lib/AutoCanvas'
-import { WheelZoomCamera2D } from './WheelZoomCamera2D'
+import { WheelZoomCamera2D } from '../lib/WheelZoomCamera2D'
 import { Circles } from '@/demo/Circles'
 import { CircleStyleType, getTheme } from './style'
 

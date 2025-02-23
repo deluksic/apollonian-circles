@@ -11,11 +11,14 @@ import { createClearTexturePipeline } from './flame/clearTexture'
 import { bindGroupLayout, Point } from './flame/types'
 import { createColorGradingPipeline } from './flame/colorGrading'
 import { createInitPointsPipeline } from './flame/initPoints'
+import { WheelZoomCamera2D } from './lib/WheelZoomCamera2D'
+import { useCamera } from './lib/CameraContext'
 
 const IFS_GROUP_SIZE = 32
-const POINT_COUNT = 2e6
+const POINT_COUNT = 10e6
 
 function Flam3() {
+  const camera = useCamera()
   const { root, device } = useRootContext()
   const { context, canvasSize } = useCanvas()
 
@@ -55,7 +58,11 @@ function Flam3() {
     )
 
     const ifsShaderCode = wgsl/* wgsl */ `
-      ${{ ...bindGroupLayout.bound }}
+      ${{
+        ...camera.BindGroupLayout.bound,
+        ...bindGroupLayout.bound,
+        worldToClip: camera.wgsl.worldToClip,
+      }}
     
       @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn computeSomething(
         @builtin(num_workgroups) num_workgroups: vec3<u32>,
@@ -67,22 +74,23 @@ function Flam3() {
           workgroup_id.y * num_workgroups.x +
           workgroup_id.z * num_workgroups.x * num_workgroups.y;
     
-        let i = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
+        let global_invocation_index = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
 
         let outputTextureSize = vec2f(textureDimensions(outputTexture));
 
-        var position = points[i].position;
+        var position = points[global_invocation_index].position;
 
-        let p = (position - vec2(0.5));
-        let speed = vec2f(-p.y, p.x);
+        let speed = vec2f(-position.y, position.x);
         position += 0.0005 * speed / dot(speed, speed);
+        let affine = mat3x2f(1, 0, 0, 0, 1, 0);
 
-        let pixelPosition = vec2i(position * outputTextureSize);
+        let clip = worldToClip(position);
+        let pixelPosition = vec2i(0.5 * (clip * vec2f(1, -1) + 1) * outputTextureSize);
         let prevCount = textureLoad(outputTexture, pixelPosition);
         textureStore(outputTexture, pixelPosition, prevCount + 1);
 
         // write back the point
-        points[i].position = position;
+        points[global_invocation_index].position = position;
       }
     `
 
@@ -92,7 +100,10 @@ function Flam3() {
 
     const ifsPipeline = device.createComputePipeline({
       layout: device.createPipelineLayout({
-        bindGroupLayouts: [root.unwrap(bindGroupLayout)],
+        bindGroupLayouts: [
+          root.unwrap(camera.BindGroupLayout),
+          root.unwrap(bindGroupLayout),
+        ],
       }),
       compute: {
         module: ifsModule,
@@ -109,13 +120,15 @@ function Flam3() {
     }
 
     createAnimationFrame(() => {
+      camera.update()
       // Encode commands to do the computation
       const encoder = device.createCommandEncoder()
       {
         const pass = encoder.beginComputePass()
         runClearTexture(pass)
         pass.setPipeline(ifsPipeline)
-        pass.setBindGroup(0, root.unwrap(bindGroup))
+        pass.setBindGroup(0, root.unwrap(camera.bindGroup))
+        pass.setBindGroup(1, root.unwrap(bindGroup))
         pass.dispatchWorkgroups(
           POINT_COUNT / (IFS_GROUP_SIZE * IFS_GROUP_SIZE),
           IFS_GROUP_SIZE,
@@ -137,7 +150,9 @@ export function App() {
     <div class={ui.fullscreen}>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
         <AutoCanvas class={ui.canvas} pixelRatio={1 / window.devicePixelRatio}>
-          <Flam3 />
+          <WheelZoomCamera2D>
+            <Flam3 />
+          </WheelZoomCamera2D>
         </AutoCanvas>
       </Root>
     </div>

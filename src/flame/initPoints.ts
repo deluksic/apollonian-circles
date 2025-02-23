@@ -28,7 +28,7 @@ export function createInitPointsPipeline(
       points[i].position = vec2f(
         random(i) + random(i << 4) + random(i << 8),
         random(i << 5) + random(i << 9) + random(i << 17)
-      ) / 3;
+      ) / 3 - 0.5;
     }
   `
 
