@@ -1,13 +1,27 @@
 import { wgsl } from '@/utils/wgsl'
-import { TgpuRoot } from 'typegpu'
-import { BindGroupFor, bindGroupLayout } from './types'
+import tgpu, { LayoutEntryToInput, TgpuRoot, TgpuTexture } from 'typegpu'
 import { premultipliedAlphaBlend } from '@/utils/blendModes'
+
+const bindGroupLayout = tgpu.bindGroupLayout({
+  outputTexture: {
+    storageTexture: 'r32uint',
+    access: 'readonly',
+    visibility: ['fragment'],
+  },
+})
 
 export function createColorGradingPipeline(
   root: TgpuRoot,
-  bindGroup: BindGroupFor<typeof bindGroupLayout>,
+  outputTexture: LayoutEntryToInput<
+    (typeof bindGroupLayout)['entries']['outputTexture']
+  >,
 ) {
   const { device } = root
+
+  const bindGroup = root.createBindGroup(bindGroupLayout, {
+    outputTexture,
+  })
+
   const renderShaderCode = wgsl/* wgsl */ `
     ${{
       outputTexture: bindGroupLayout.bound.outputTexture,

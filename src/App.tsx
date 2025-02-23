@@ -56,7 +56,10 @@ function Flam3() {
     })
 
     const runInitPoints = createInitPointsPipeline(root, bindGroup, POINT_COUNT)
-    const runColorGradingPipeline = createColorGradingPipeline(root, bindGroup)
+    const runColorGradingPipeline = createColorGradingPipeline(
+      root,
+      outputTexture,
+    )
     const runClearTexture = createClearTexturePipeline(
       root,
       bindGroup,
@@ -98,21 +101,18 @@ function Flam3() {
         // let affine = mat3x2f(1, 0, 0, 1, 0, 0);
         let affine1 = mat3x2f(0.5, 0,   0, 0.5,   0.5, 0);
         let affine2 = mat3x2f(0.5, 0,   0, 0.5,   0, 0.5);
-        let affine3 = mat3x2f(0.5, 0,   0, 0.5,   0, 0);
+        let affine3 = mat3x2f(0.5, 0,   0, 0.5,   -0.5, -0.5);
         let trans = array(affine1, affine2, affine3);
 
         var seed = computeUniforms.seed ^ hash(workgroup_index);
-        for(var i = 0; i < 16; i += 1) {
+        for(var i = 0; i < 20; i += 1) {
           seed = hash(seed);
           let affine = trans[seed % 3];
           position = affine * vec3f(position, 1.);
-          if (i >= 8) {
+          if (i >= 5) {
             draw(position);
           }
         }
-
-        // write back the point
-        // points[global_invocation_index].position = position;
       }
     `
 
@@ -172,7 +172,7 @@ export function App() {
   return (
     <div class={ui.fullscreen}>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
-        <AutoCanvas class={ui.canvas} pixelRatio={0.5}>
+        <AutoCanvas class={ui.canvas} pixelRatio={1}>
           <WheelZoomCamera2D>
             <Flam3 />
           </WheelZoomCamera2D>
