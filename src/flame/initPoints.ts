@@ -1,8 +1,14 @@
-import { random } from '@/shaders/random'
+import { hash, random } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
-import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot } from 'typegpu'
+import tgpu, {
+  LayoutEntryToInput,
+  StorageFlag,
+  TgpuBuffer,
+  TgpuRoot,
+} from 'typegpu'
 import { arrayOf, WgslArray } from 'typegpu/data'
 import { Point } from './types'
+import { ComputeUniforms } from './ifsPipeline'
 
 const INIT_GROUP_SIZE = 32
 
@@ -11,20 +17,31 @@ const bindGroupLayout = tgpu.bindGroupLayout({
     storage: (length: number) => arrayOf(Point, length),
     access: 'mutable',
   },
+  computeUniforms: {
+    uniform: ComputeUniforms,
+  },
 })
 
 export function createInitPointsPipeline(
   root: TgpuRoot,
   points: TgpuBuffer<WgslArray<typeof Point>> & StorageFlag,
+  computeUniforms: LayoutEntryToInput<
+    (typeof bindGroupLayout)['entries']['computeUniforms']
+  >,
 ) {
   const { device } = root
 
   const bindGroup = root.createBindGroup(bindGroupLayout, {
     points,
+    computeUniforms,
   })
 
   const initPointsShaderCode = wgsl/* wgsl */ `
-    ${{ ...bindGroupLayout.bound, random }}
+    ${{
+      ...bindGroupLayout.bound,
+      random,
+      hash,
+    }}
 
     @compute @workgroup_size(${INIT_GROUP_SIZE}, 1, 1) fn computeSomething(
       @builtin(num_workgroups) num_workgroups: vec3<u32>,
@@ -37,9 +54,10 @@ export function createInitPointsPipeline(
         workgroup_id.z * num_workgroups.x * num_workgroups.y;
 
       let i = workgroup_index * ${INIT_GROUP_SIZE} + local_invocation_index;
+      let seed = computeUniforms.seed ^ hash(i);
       points[i].position = vec2f(
-        random(i) + random(i << 4) + random(i << 8),
-        random(i << 5) + random(i << 9) + random(i << 17)
+        random(seed) + random(seed << 4) + random(seed << 8),
+        random(seed << 5) + random(seed << 9) + random(seed << 17)
       ) / 3 - 0.5;
     }
   `

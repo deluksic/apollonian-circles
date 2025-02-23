@@ -4,8 +4,7 @@ import { premultipliedAlphaBlend } from '@/utils/blendModes'
 
 const bindGroupLayout = tgpu.bindGroupLayout({
   outputTexture: {
-    storageTexture: 'r32uint',
-    access: 'readonly',
+    texture: 'float',
     visibility: ['fragment'],
   },
 })
@@ -41,7 +40,7 @@ export function createColorGradingPipeline(
 
     @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
       let pos2u = vec2u(pos.xy);
-      let count = f32(textureLoad(outputTexture, pos2u).x);
+      let count = f32(textureLoad(outputTexture, pos2u, 0).a);
       return vec4f(vec3f(count / 10, count / 12, count / 20), count / 10);
     }
   `

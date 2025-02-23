@@ -1,4 +1,3 @@
-import { CameraContext } from '@/lib/CameraContext'
 import { hash } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, {
@@ -10,6 +9,7 @@ import tgpu, {
 import { arrayOf, struct, u32, WgslArray } from 'typegpu/data'
 import { Point } from './types'
 
+const { ceil } = Math
 const IFS_GROUP_SIZE = 32
 
 export const ComputeUniforms = struct({
@@ -24,20 +24,19 @@ const bindGroupLayout = tgpu.bindGroupLayout({
   computeUniforms: {
     uniform: ComputeUniforms,
   },
-  outputTexture: {
-    storageTexture: 'r32uint',
-    access: 'mutable',
-    visibility: ['compute'],
+})
+
+const outerIterationBindGroupLayout = tgpu.bindGroupLayout({
+  outerIterationIndex: {
+    uniform: u32,
   },
 })
 
 export function createIFSPipeline(
   root: TgpuRoot,
-  camera: CameraContext,
+  outerIterCount: number,
+  insideShaderCount: number,
   points: TgpuBuffer<WgslArray<typeof Point>> & StorageFlag,
-  outputTexture: LayoutEntryToInput<
-    (typeof bindGroupLayout)['entries']['outputTexture']
-  >,
   computeUniforms: LayoutEntryToInput<
     (typeof bindGroupLayout)['entries']['computeUniforms']
   >,
@@ -46,25 +45,30 @@ export function createIFSPipeline(
 
   const bindGroup = root.createBindGroup(bindGroupLayout, {
     points,
-    outputTexture,
     computeUniforms,
   })
 
+  const perOuterIterationBindGroups = Array.from({
+    length: outerIterCount,
+  }).map((_, i) =>
+    root.createBindGroup(outerIterationBindGroupLayout, {
+      outerIterationIndex: root.createBuffer(u32, i).$usage('uniform'),
+    }),
+  )
+
   const ifsShaderCode = wgsl/* wgsl */ `
     ${{
-      ...camera.BindGroupLayout.bound,
       ...bindGroupLayout.bound,
-      worldToClip: camera.wgsl.worldToClip,
+      ...outerIterationBindGroupLayout.bound,
       hash,
     }}
 
-    fn draw(position: vec2f) {
-      let outputTextureSize = vec2f(textureDimensions(outputTexture));
-      let clip = worldToClip(position);
-      let pixelPosition = vec2i(0.5 * (clip * vec2f(1, -1) + 1) * outputTextureSize);
-      let prevCount = textureLoad(outputTexture, pixelPosition);
-      textureStore(outputTexture, pixelPosition, prevCount + 1);
-    }
+    const ITER_COUNT = ${insideShaderCount};
+
+    const affine1 = mat3x2f(0.5, 0,   0, 0.5,   0.5, 0);
+    const affine2 = mat3x2f(0.5, 0,   0, 0.5,   0, 0.5);
+    const affine3 = mat3x2f(0.5, 0,   0, 0.5,   -0.5, -0.5);
+    const trans = array(affine1, affine2, affine3);
 
     @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn computeSomething(
       @builtin(num_workgroups) num_workgroups: vec3<u32>,
@@ -76,27 +80,18 @@ export function createIFSPipeline(
         workgroup_id.y * num_workgroups.x +
         workgroup_id.z * num_workgroups.x * num_workgroups.y;
 
-      let global_invocation_index = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
+      let i = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
 
-      var position = points[global_invocation_index].position;
+      var position = points[i].position;
 
-      // let speed = vec2f(-position.y, position.x);
-      // position += 0.0005 * speed / dot(speed, speed);
-      // let affine = mat3x2f(1, 0, 0, 1, 0, 0);
-      let affine1 = mat3x2f(0.5, 0,   0, 0.5,   0.5, 0);
-      let affine2 = mat3x2f(0.5, 0,   0, 0.5,   0, 0.5);
-      let affine3 = mat3x2f(0.5, 0,   0, 0.5,   -0.5, -0.5);
-      let trans = array(affine1, affine2, affine3);
-
-      var seed = computeUniforms.seed ^ hash(workgroup_index);
-      for(var i = 0; i < 20; i += 1) {
+      var seed = computeUniforms.seed ^ hash(workgroup_index) ^ hash(outerIterationIndex);
+      for (var i = 0; i < ITER_COUNT; i += 1) {
         seed = hash(seed);
         let affine = trans[seed % 3];
-        position = affine * vec3f(position, 1.);
-        if (i >= 5) {
-          draw(position);
-        }
+        position = (affine * vec3f(position, 1.)).xy;
       }
+
+      points[i].position = position;
     }
   `
 
@@ -107,8 +102,8 @@ export function createIFSPipeline(
   const ifsPipeline = device.createComputePipeline({
     layout: device.createPipelineLayout({
       bindGroupLayouts: [
-        root.unwrap(camera.BindGroupLayout),
         root.unwrap(bindGroupLayout),
+        root.unwrap(outerIterationBindGroupLayout),
       ],
     }),
     compute: {
@@ -116,12 +111,22 @@ export function createIFSPipeline(
     },
   })
 
-  return (pass: GPUComputePassEncoder, pointCount: number) => {
+  return (
+    iteration: number,
+    pass: GPUComputePassEncoder,
+    pointCount: number,
+  ) => {
+    const iterationBindGroup = perOuterIterationBindGroups[iteration]
+    if (!iterationBindGroup) {
+      throw new Error(
+        `Requested more iterations (${iteration}) than initially specified ${outerIterCount}.`,
+      )
+    }
     pass.setPipeline(ifsPipeline)
-    pass.setBindGroup(0, root.unwrap(camera.bindGroup))
-    pass.setBindGroup(1, root.unwrap(bindGroup))
+    pass.setBindGroup(0, root.unwrap(bindGroup))
+    pass.setBindGroup(1, root.unwrap(iterationBindGroup))
     pass.dispatchWorkgroups(
-      pointCount / (IFS_GROUP_SIZE * IFS_GROUP_SIZE),
+      ceil(pointCount / (IFS_GROUP_SIZE * IFS_GROUP_SIZE)),
       IFS_GROUP_SIZE,
       1,
     )
