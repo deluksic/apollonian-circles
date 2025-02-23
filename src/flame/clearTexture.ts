@@ -1,18 +1,34 @@
-import { TgpuBindGroup, TgpuRoot, TgpuTexture } from 'typegpu'
+import tgpu, { StorageFlag, TgpuRoot, TgpuTexture } from 'typegpu'
 import { wgsl } from '@/utils/wgsl'
 
 const { ceil } = Math
 
 const CLEAR_GROUP_SIZE = 8
 
+const bindGroupLayout = tgpu.bindGroupLayout({
+  outputTexture: {
+    storageTexture: 'r32uint',
+    access: 'mutable',
+    visibility: ['compute'],
+  },
+})
+
 export function createClearTexturePipeline(
   root: TgpuRoot,
-  bindGroup: TgpuBindGroup,
-  texture: TgpuTexture,
+  outputTexture: TgpuTexture<{
+    size: [number, number]
+    format: 'r32uint'
+  }> &
+    StorageFlag,
 ) {
   const { device } = root
+
+  const bindGroup = root.createBindGroup(bindGroupLayout, {
+    outputTexture,
+  })
+
   const clearTextureBufferShaderCode = wgsl/* wgsl */ `
-      ${{ ...bindGroup.layout.bound }}
+      ${{ ...bindGroupLayout.bound }}
 
       fn ceildiv(x: u32, y: u32) -> u32 {
         return x / y + u32(x % y != 0);
@@ -44,7 +60,7 @@ export function createClearTexturePipeline(
   })
 
   return (pass: GPUComputePassEncoder) => {
-    const [width, height] = texture.props.size as [number, number]
+    const [width, height] = outputTexture.props.size
     pass.setPipeline(clearTexturePipeline)
     pass.setBindGroup(0, root.unwrap(bindGroup))
     pass.dispatchWorkgroups(

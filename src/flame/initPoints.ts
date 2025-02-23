@@ -1,16 +1,28 @@
 import { random } from '@/shaders/random'
-import { BindGroupFor, bindGroupLayout } from './types'
 import { wgsl } from '@/utils/wgsl'
-import { TgpuRoot } from 'typegpu'
+import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot } from 'typegpu'
+import { arrayOf, WgslArray } from 'typegpu/data'
+import { Point } from './types'
 
 const INIT_GROUP_SIZE = 32
 
+const bindGroupLayout = tgpu.bindGroupLayout({
+  points: {
+    storage: (length: number) => arrayOf(Point, length),
+    access: 'mutable',
+  },
+})
+
 export function createInitPointsPipeline(
   root: TgpuRoot,
-  bindGroup: BindGroupFor<typeof bindGroupLayout>,
-  pointCount: number,
+  points: TgpuBuffer<WgslArray<typeof Point>> & StorageFlag,
 ) {
   const { device } = root
+
+  const bindGroup = root.createBindGroup(bindGroupLayout, {
+    points,
+  })
+
   const initPointsShaderCode = wgsl/* wgsl */ `
     ${{ ...bindGroupLayout.bound, random }}
 
@@ -45,7 +57,7 @@ export function createInitPointsPipeline(
     },
   })
 
-  return (pass: GPUComputePassEncoder) => {
+  return (pass: GPUComputePassEncoder, pointCount: number) => {
     pass.setPipeline(initPointsPipeline)
     pass.setBindGroup(0, root.unwrap(bindGroup))
     pass.dispatchWorkgroups(
