@@ -1,16 +1,26 @@
 import { wgsl } from '@/utils/wgsl'
-import tgpu, { LayoutEntryToInput, TgpuRoot, TgpuTexture } from 'typegpu'
+import tgpu, { LayoutEntryToInput, TgpuRoot } from 'typegpu'
 import { premultipliedAlphaBlend } from '@/utils/blendModes'
+import { f32, struct } from 'typegpu/data'
+
+export const ColorGradingUniforms = struct({
+  accumulatedIterationCount: f32,
+  zoom: f32,
+})
 
 const bindGroupLayout = tgpu.bindGroupLayout({
+  uniforms: {
+    uniform: ColorGradingUniforms,
+  },
   outputTexture: {
-    texture: 'float',
+    texture: 'unfilterable-float',
     visibility: ['fragment'],
   },
 })
 
 export function createColorGradingPipeline(
   root: TgpuRoot,
+  uniforms: LayoutEntryToInput<(typeof bindGroupLayout)['entries']['uniforms']>,
   outputTexture: LayoutEntryToInput<
     (typeof bindGroupLayout)['entries']['outputTexture']
   >,
@@ -18,12 +28,13 @@ export function createColorGradingPipeline(
   const { device } = root
 
   const bindGroup = root.createBindGroup(bindGroupLayout, {
+    uniforms,
     outputTexture,
   })
 
   const renderShaderCode = wgsl/* wgsl */ `
     ${{
-      outputTexture: bindGroupLayout.bound.outputTexture,
+      ...bindGroupLayout.bound,
     }}
 
     @vertex fn vs(
@@ -40,8 +51,9 @@ export function createColorGradingPipeline(
 
     @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
       let pos2u = vec2u(pos.xy);
-      let count = f32(textureLoad(outputTexture, pos2u, 0).a);
-      return vec4f(vec3f(count / 10, count / 12, count / 20), count / 10);
+      let factor = clamp(0, 40, uniforms.zoom * uniforms.zoom / uniforms.accumulatedIterationCount);
+      let count = f32(textureLoad(outputTexture, pos2u, 0).a) * factor;
+      return vec4f(vec3f(count / 20, count / 24, count / 40), 1);
     }
   `
 

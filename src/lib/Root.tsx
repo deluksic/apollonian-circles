@@ -21,7 +21,9 @@ export function Root(props: ParentProps<RootProps>) {
         )
       }
       console.info(`Using ${adapter.info.vendor} adapter.`)
-      const device = await adapter?.requestDevice()
+      const device = await adapter?.requestDevice({
+        requiredFeatures: ['float32-blendable'],
+      })
       if (!device) {
         throw new Error(
           `Failed to get GPUDevice, make sure to use a browser with WebGPU support.`,

@@ -6,20 +6,32 @@ import { Root } from './lib/Root'
 import { useRootContext } from './lib/RootContext'
 import { createAnimationFrame } from './utils/createAnimationFrame'
 import { createEffect, onCleanup } from 'solid-js'
-import { createColorGradingPipeline } from './flame/colorGrading'
+import {
+  ColorGradingUniforms,
+  createColorGradingPipeline,
+} from './flame/colorGrading'
 import { createInitPointsPipeline } from './flame/initPoints'
 import { WheelZoomCamera2D } from './lib/WheelZoomCamera2D'
 import { useCamera } from './lib/CameraContext'
 import { ComputeUniforms, createIFSPipeline } from './flame/ifsPipeline'
-import { Point } from './flame/types'
+import { Point, outputTextureFormat } from './flame/types'
 import { createRenderPointsPipeline } from './flame/renderPoints'
 
-const POINT_COUNT = 6e5
+const POINT_COUNT = 1e6
+const OUTER_ITERS = 10
 
 function Flam3() {
   const camera = useCamera()
   const { root, device } = useRootContext()
   const { context, canvasSize } = useCanvas()
+
+  const points = root
+    .createBuffer(d.arrayOf(Point, POINT_COUNT))
+    .$usage('storage')
+
+  onCleanup(() => {
+    points.destroy()
+  })
 
   createEffect(() => {
     const { width, height } = canvasSize()
@@ -27,23 +39,16 @@ function Flam3() {
       return
     }
 
-    const points = root
-      .createBuffer(d.arrayOf(Point, POINT_COUNT))
-      .$usage('storage')
-
-    onCleanup(() => {
-      points.destroy()
-    })
-
     const outputTexture = root['~unstable']
       .createTexture({
-        format: 'rgba16float',
+        format: outputTextureFormat,
         size: [width, height],
       })
       .$usage('sampled', 'render')
+      .$name('outputTexture')
     onCleanup(() => outputTexture.destroy())
 
-    const outputTextureView = root.unwrap(outputTexture.createView('sampled'))
+    const outputTextureView = root.unwrap(outputTexture).createView()
 
     const computeUniforms = root
       .createBuffer(ComputeUniforms, { seed: 0 })
@@ -54,18 +59,35 @@ function Flam3() {
       points,
       computeUniforms,
     )
-    const runSkipIfs = createIFSPipeline(root, 1, 1, points, computeUniforms)
-    const runIfs = createIFSPipeline(root, 10, 1, points, computeUniforms)
+    const runSkipIfs = createIFSPipeline(root, 1, 3, points, computeUniforms)
+    const runIfs = createIFSPipeline(
+      root,
+      OUTER_ITERS,
+      1,
+      points,
+      computeUniforms,
+    )
+    const colorGradingUniforms = root
+      .createBuffer(ColorGradingUniforms, {
+        accumulatedIterationCount: 0,
+        zoom: 1,
+      })
+      .$usage('uniform')
+
     const renderPoints = createRenderPointsPipeline(root, camera, points)
     const runColorGradingPipeline = createColorGradingPipeline(
       root,
+      colorGradingUniforms,
       outputTexture,
     )
 
-    createAnimationFrame(() => {
-      camera.update()
-      computeUniforms.write({ seed: Math.random() * 0xffff })
-      // Encode commands to do the computation
+    let count = 0
+    createEffect(() => {
+      count = 0
+      colorGradingUniforms.write({
+        accumulatedIterationCount: 0,
+        zoom: camera.zoom(),
+      })
       const encoder = device.createCommandEncoder()
       {
         const pass = encoder.beginRenderPass({
@@ -80,6 +102,19 @@ function Flam3() {
         })
         pass.end()
       }
+      device.queue.submit([encoder.finish()])
+    })
+
+    createAnimationFrame(() => {
+      camera.update()
+      computeUniforms.write({ seed: Math.random() * 0xffff })
+      count += 1
+      colorGradingUniforms.write({
+        accumulatedIterationCount: count,
+        zoom: camera.zoom(),
+      })
+      // Encode commands to do the computation
+      const encoder = device.createCommandEncoder()
       {
         const pass = encoder.beginComputePass()
         runInitPoints(pass, POINT_COUNT)
@@ -99,7 +134,7 @@ function Flam3() {
         renderPoints(pass, POINT_COUNT)
         pass.end()
       }
-      for (let i = 0; i < 10; ++i) {
+      for (let i = 0; i < OUTER_ITERS; ++i) {
         {
           const pass = encoder.beginComputePass()
           runIfs(i, pass, POINT_COUNT)

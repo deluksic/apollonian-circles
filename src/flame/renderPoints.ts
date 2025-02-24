@@ -3,13 +3,15 @@ import { hash } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot } from 'typegpu'
 import { arrayOf, WgslArray } from 'typegpu/data'
-import { Point } from './types'
+import { Point, outputTextureFormat } from './types'
 
-const bindGroupLayout = tgpu.bindGroupLayout({
-  points: {
-    storage: (length: number) => arrayOf(Point, length),
-  },
-})
+const bindGroupLayout = tgpu
+  .bindGroupLayout({
+    points: {
+      storage: (length: number) => arrayOf(Point, length),
+    },
+  })
+  .$name('RenderPointsPipeline.bindGroupLayout')
 
 export function createRenderPointsPipeline(
   root: TgpuRoot,
@@ -61,7 +63,7 @@ export function createRenderPointsPipeline(
       module,
       targets: [
         {
-          format: 'rgba16float',
+          format: outputTextureFormat,
           blend: {
             color: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
             alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
