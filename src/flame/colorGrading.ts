@@ -37,23 +37,24 @@ export function createColorGradingPipeline(
       ...bindGroupLayout.bound,
     }}
 
+    const pos = array(
+      vec2f(-1, -1),
+      vec2f(3, -1),
+      vec2f(-1, 3)
+    );
+
     @vertex fn vs(
       @builtin(vertex_index) vertexIndex : u32
     ) -> @builtin(position) vec4f {
-      let pos = array(
-        vec2f(-1, -1),
-        vec2f(3, -1),
-        vec2f(-1, 3)
-      );
-
       return vec4f(pos[vertexIndex], 0.0, 1.0);
     }
 
     @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
       let pos2u = vec2u(pos.xy);
-      let factor = clamp(0, 40, uniforms.zoom * uniforms.zoom / uniforms.accumulatedIterationCount);
-      let count = f32(textureLoad(outputTexture, pos2u, 0).a) * factor;
-      return vec4f(vec3f(count / 20, count / 24, count / 40), 1);
+      let count = f32(textureLoad(outputTexture, pos2u, 0).a) / uniforms.accumulatedIterationCount;
+      let factor = clamp(0.1, 40, uniforms.zoom);
+      let value = log(count * factor + 1);
+      return vec4f(vec3f(value, value * 0.8, value * 0.4), 1);
     }
   `
 

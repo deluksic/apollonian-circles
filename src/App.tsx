@@ -18,7 +18,8 @@ import { Point, outputTextureFormat } from './flame/types'
 import { createRenderPointsPipeline } from './flame/renderPoints'
 
 const POINT_COUNT = 1e6
-const OUTER_ITERS = 10
+const SKIP_ITERS = 10
+const OUTER_ITERS = 3
 
 function Flam3() {
   const camera = useCamera()
@@ -59,7 +60,13 @@ function Flam3() {
       points,
       computeUniforms,
     )
-    const runSkipIfs = createIFSPipeline(root, 1, 3, points, computeUniforms)
+    const runSkipIfs = createIFSPipeline(
+      root,
+      1,
+      SKIP_ITERS,
+      points,
+      computeUniforms,
+    )
     const runIfs = createIFSPipeline(
       root,
       OUTER_ITERS,

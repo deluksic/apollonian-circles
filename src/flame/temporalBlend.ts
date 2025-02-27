@@ -6,15 +6,15 @@ export function createTemporalBlendPipeline(root: TgpuRoot) {
   const { device } = root
 
   const renderShaderCode = wgsl/* wgsl */ `
+    const pos = array(
+      vec2f(-1, -1),
+      vec2f(3, -1),
+      vec2f(-1, 3)
+    );
+
     @vertex fn vs(
       @builtin(vertex_index) vertexIndex : u32
     ) -> @builtin(position) vec4f {
-      let pos = array(
-        vec2f(-1, -1),
-        vec2f(3, -1),
-        vec2f(-1, 3)
-      );
-
       return vec4f(pos[vertexIndex], 0.0, 1.0);
     }
 
