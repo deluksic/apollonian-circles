@@ -1,5 +1,5 @@
 import { createEffect, createSignal, ParentProps, Show } from 'solid-js'
-import { useElementSize } from '@/utils/useElementSize'
+import { ElementSize, useElementSize } from '@/utils/useElementSize'
 import { CanvasContextProvider } from './CanvasContext'
 import { useRootContext } from './RootContext'
 
@@ -12,16 +12,38 @@ type AutoCanvasProps = {
 
 export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
   const { device } = useRootContext()
+
+  const scaledCanvasSize = (size: ElementSize): ElementSize => {
+    const pixelRatio = props.pixelRatio ?? 1
+    const maxDim = device.limits.maxTextureDimension2D
+    return {
+      ...size,
+      widthPX: max(1, min(size.widthPX * pixelRatio, maxDim)),
+      heightPX: max(1, min(size.heightPX * pixelRatio, maxDim)),
+    }
+  }
+
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement>()
   const canvasSize = useElementSize(canvas, (size) => {
     const el = canvas()
     if (!el) {
       return
     }
-    size.widthPX *= props.pixelRatio ?? 1
-    size.heightPX *= props.pixelRatio ?? 1
-    el.width = max(1, min(size.widthPX, device.limits.maxTextureDimension2D))
-    el.height = max(1, min(size.heightPX, device.limits.maxTextureDimension2D))
+    const { widthPX, heightPX } = scaledCanvasSize(size)
+    el.width = widthPX
+    el.height = heightPX
+  })
+
+  // also update canvas size when props.pixelRatio changes
+  createEffect(() => {
+    const el = canvas()
+    const size = canvasSize()
+    if (!el || !size) {
+      return
+    }
+    const { widthPX, heightPX } = scaledCanvasSize(size)
+    el.width = widthPX
+    el.height = heightPX
   })
 
   function createContext(canvas: HTMLCanvasElement) {
@@ -49,10 +71,17 @@ export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
             value={{
               canvas,
               context: createContext(canvas),
-              canvasSize: () => ({
-                width: canvasSize()?.widthPX ?? 0,
-                height: canvasSize()?.heightPX ?? 0,
-              }),
+              canvasSize: () => {
+                const size = canvasSize()
+                if (!size) {
+                  return { width: 0, height: 0 }
+                }
+                const { widthPX, heightPX } = scaledCanvasSize(size)
+                return {
+                  width: widthPX,
+                  height: heightPX,
+                }
+              },
             }}
           >
             {props.children}

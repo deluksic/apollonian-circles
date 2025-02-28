@@ -1,4 +1,4 @@
-import { hash } from '@/shaders/random'
+import { hash, randomU, seed } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, {
   LayoutEntryToInput,
@@ -7,7 +7,8 @@ import tgpu, {
   TgpuRoot,
 } from 'typegpu'
 import { arrayOf, struct, u32, WgslArray } from 'typegpu/data'
-import { Point } from './types'
+import { AffineParams, Point, transformAffine } from './types'
+import { transformFunctions } from './transformFunctions'
 
 const { ceil } = Math
 const IFS_GROUP_SIZE = 32
@@ -34,7 +35,7 @@ const outerIterationBindGroupLayout = tgpu.bindGroupLayout({
 
 export function createIFSPipeline(
   root: TgpuRoot,
-  outerIterCount: number,
+  maxOuterIterCount: number,
   insideShaderCount: number,
   points: TgpuBuffer<WgslArray<typeof Point>> & StorageFlag,
   computeUniforms: LayoutEntryToInput<
@@ -49,7 +50,7 @@ export function createIFSPipeline(
   })
 
   const perOuterIterationBindGroups = Array.from({
-    length: outerIterCount,
+    length: maxOuterIterCount,
   }).map((_, i) =>
     root.createBindGroup(outerIterationBindGroupLayout, {
       outerIterationIndex: root.createBuffer(u32, i).$usage('uniform'),
@@ -60,15 +61,50 @@ export function createIFSPipeline(
     ${{
       ...bindGroupLayout.bound,
       ...outerIterationBindGroupLayout.bound,
+      Point,
       hash,
+      seed,
+      randomU,
+      linear: transformFunctions.linear.fn,
+      swirl: transformFunctions.swirl.fn,
+      popcorn: transformFunctions.popcorn.fn,
+      AffineParams,
+      transformAffine,
     }}
 
     const ITER_COUNT = ${insideShaderCount};
 
-    const affine1 = mat3x2f(0.5, 0,   0, 0.5,   0.5, 0);
-    const affine2 = mat3x2f(0.5, 0,   0, 0.5,   0, 0.5);
-    const affine3 = mat3x2f(0.5, 0,   0, 0.5,   -0.5, -0.5);
-    const trans = array(affine1, affine2, affine3);
+    const affine0 = AffineParams(0.7, 0,   0.5, 0, 0.6,  0.0);
+    const affine1 = AffineParams(0.7, 0,   0.0, 0, 0.6,  0.5);
+    const affine2 = AffineParams(0.7, 0,  -0.5, 0, 0.6, -0.5);
+
+    fn flame0(point: Point) -> Point {
+      let pre = transformAffine(affine0, point.position);
+      var p = vec2f(0);
+      p += linear(pre);
+      p /= 1;
+      // p = transformAffine(affine0, p);
+      return Point(p, point.color);
+    }
+
+    fn flame1(point: Point) -> Point {
+      let pre = transformAffine(affine1, point.position);
+      var p = vec2f(0);
+      p += 0.7 * linear(pre);
+      p += 0.2 * swirl(pre);
+      p += 0.1 * popcorn(pre, affine1);
+      // p = transformAffine(affine1, p);
+      return Point(p, point.color);
+    }
+
+    fn flame2(point: Point) -> Point {
+      let pre = transformAffine(affine2, point.position);
+      var p = vec2f(0);
+      p += 0.25 * linear(pre);
+      p += 0.75 * swirl(pre);
+      // p = transformAffine(affine2, p);
+      return Point(p, point.color);
+    }
 
     @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn computeSomething(
       @builtin(num_workgroups) num_workgroups: vec3<u32>,
@@ -82,16 +118,21 @@ export function createIFSPipeline(
 
       let i = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
 
-      var position = points[i].position;
+      seed(computeUniforms.seed ^ hash(workgroup_index) ^ hash(outerIterationIndex));
 
-      var seed = computeUniforms.seed ^ hash(workgroup_index) ^ hash(outerIterationIndex);
+      var point = points[i];
       for (var i = 0; i < ITER_COUNT; i += 1) {
-        seed = hash(seed);
-        let affine = trans[seed % 3];
-        position = (affine * vec3f(position, 1.)).xy;
+        let flameIndex = randomU() % 3;
+        if (flameIndex == 0) {
+          point = flame0(point);
+        } else if (flameIndex == 1) {
+          point = flame1(point);
+        } else {
+          point = flame2(point);
+        }
       }
 
-      points[i].position = position;
+      points[i] = point;
     }
   `
 
@@ -119,7 +160,7 @@ export function createIFSPipeline(
     const iterationBindGroup = perOuterIterationBindGroups[iteration]
     if (!iterationBindGroup) {
       throw new Error(
-        `Requested more iterations (${iteration}) than initially specified ${outerIterCount}.`,
+        `Requested more iterations (${iteration}) than initially specified ${maxOuterIterCount}.`,
       )
     }
     pass.setPipeline(ifsPipeline)

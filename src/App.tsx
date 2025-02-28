@@ -5,7 +5,7 @@ import { useCanvas } from './lib/CanvasContext'
 import { Root } from './lib/Root'
 import { useRootContext } from './lib/RootContext'
 import { createAnimationFrame } from './utils/createAnimationFrame'
-import { createEffect, onCleanup } from 'solid-js'
+import { createEffect, createSignal, onCleanup } from 'solid-js'
 import {
   ColorGradingUniforms,
   createColorGradingPipeline,
@@ -18,10 +18,15 @@ import { Point, outputTextureFormat } from './flame/types'
 import { createRenderPointsPipeline } from './flame/renderPoints'
 
 const POINT_COUNT = 1e6
-const SKIP_ITERS = 10
-const OUTER_ITERS = 3
+const MAX_OUTER_ITERS = 15
+const MAX_INNER_ITERS = 15
 
-function Flam3() {
+type Flam3Props = {
+  outerIters: number
+  skipIters: number
+}
+
+function Flam3(props: Flam3Props) {
   const camera = useCamera()
   const { root, device } = useRootContext()
   const { context, canvasSize } = useCanvas()
@@ -35,6 +40,7 @@ function Flam3() {
   })
 
   createEffect(() => {
+    console.log('Creating everything from scratch.')
     const { width, height } = canvasSize()
     if (width * height === 0) {
       return
@@ -63,13 +69,13 @@ function Flam3() {
     const runSkipIfs = createIFSPipeline(
       root,
       1,
-      SKIP_ITERS,
+      props.skipIters,
       points,
       computeUniforms,
     )
     const runIfs = createIFSPipeline(
       root,
-      OUTER_ITERS,
+      MAX_OUTER_ITERS,
       1,
       points,
       computeUniforms,
@@ -91,6 +97,7 @@ function Flam3() {
     let count = 0
     createEffect(() => {
       count = 0
+      props.outerIters
       colorGradingUniforms.write({
         accumulatedIterationCount: 0,
         zoom: camera.zoom(),
@@ -141,7 +148,7 @@ function Flam3() {
         renderPoints(pass, POINT_COUNT)
         pass.end()
       }
-      for (let i = 0; i < OUTER_ITERS; ++i) {
+      for (let i = 0; i < props.outerIters; ++i) {
         {
           const pass = encoder.beginComputePass()
           runIfs(i, pass, POINT_COUNT)
@@ -171,12 +178,53 @@ function Flam3() {
 }
 
 export function App() {
+  const [pixelRatio, setPixelRatio] = createSignal(1)
+  const [outerIters, setOuterIters] = createSignal(3)
+  const [skipIters, setSkipIters] = createSignal(5)
   return (
     <div class={ui.fullscreen}>
+      <div class={ui.overlay}>
+        <label>
+          Resolution
+          <input
+            type="range"
+            min={0.125}
+            max={1}
+            step={0.125}
+            value={pixelRatio()}
+            oninput={(ev) => setPixelRatio(ev.target.valueAsNumber)}
+          />
+          {pixelRatio()}
+        </label>
+        <label>
+          Outer Iterations
+          <input
+            type="range"
+            min={0}
+            max={MAX_OUTER_ITERS}
+            step={1}
+            value={outerIters()}
+            oninput={(ev) => setOuterIters(ev.target.valueAsNumber)}
+          />
+          {outerIters()}
+        </label>
+        <label>
+          Skip Iterations
+          <input
+            type="range"
+            min={0}
+            max={MAX_INNER_ITERS}
+            step={1}
+            value={skipIters()}
+            oninput={(ev) => setSkipIters(ev.target.valueAsNumber)}
+          />
+          {skipIters()}
+        </label>
+      </div>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
-        <AutoCanvas class={ui.canvas} pixelRatio={0.5}>
+        <AutoCanvas class={ui.canvas} pixelRatio={pixelRatio()}>
           <WheelZoomCamera2D>
-            <Flam3 />
+            <Flam3 outerIters={outerIters()} skipIters={skipIters()} />
           </WheelZoomCamera2D>
         </AutoCanvas>
       </Root>

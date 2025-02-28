@@ -14,3 +14,17 @@
 .canvas {
   image-rendering: pixelated;
 }
+
+.overlay {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  padding: 1rem;
+  color: white;
+  background-color: #0005;
+  backdrop-filter: blur(1rem);
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
