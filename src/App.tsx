@@ -17,13 +17,14 @@ import { ComputeUniforms, createIFSPipeline } from './flame/ifsPipeline'
 import { Point, outputTextureFormat } from './flame/types'
 import { createRenderPointsPipeline } from './flame/renderPoints'
 
-const POINT_COUNT = 1e6
+const MAX_POINT_COUNT = 1e6
 const MAX_OUTER_ITERS = 15
 const MAX_INNER_ITERS = 15
 
 type Flam3Props = {
   outerIters: number
   skipIters: number
+  pointCount: number
 }
 
 function Flam3(props: Flam3Props) {
@@ -32,7 +33,7 @@ function Flam3(props: Flam3Props) {
   const { context, canvasSize } = useCanvas()
 
   const points = root
-    .createBuffer(d.arrayOf(Point, POINT_COUNT))
+    .createBuffer(d.arrayOf(Point, MAX_POINT_COUNT))
     .$usage('storage')
 
   onCleanup(() => {
@@ -131,8 +132,8 @@ function Flam3(props: Flam3Props) {
       const encoder = device.createCommandEncoder()
       {
         const pass = encoder.beginComputePass()
-        runInitPoints(pass, POINT_COUNT)
-        runSkipIfs(0, pass, POINT_COUNT)
+        runInitPoints(pass, props.pointCount)
+        runSkipIfs(0, pass, props.pointCount)
         pass.end()
       }
       {
@@ -145,13 +146,13 @@ function Flam3(props: Flam3Props) {
             },
           ],
         })
-        renderPoints(pass, POINT_COUNT)
+        renderPoints(pass, props.pointCount)
         pass.end()
       }
       for (let i = 0; i < props.outerIters; ++i) {
         {
           const pass = encoder.beginComputePass()
-          runIfs(i, pass, POINT_COUNT)
+          runIfs(i, pass, props.pointCount)
           pass.end()
         }
         {
@@ -164,7 +165,7 @@ function Flam3(props: Flam3Props) {
               },
             ],
           })
-          renderPoints(pass, POINT_COUNT)
+          renderPoints(pass, props.pointCount)
           pass.end()
         }
       }
@@ -181,6 +182,7 @@ export function App() {
   const [pixelRatio, setPixelRatio] = createSignal(1)
   const [outerIters, setOuterIters] = createSignal(3)
   const [skipIters, setSkipIters] = createSignal(5)
+  const [pointCount, setPointCount] = createSignal(MAX_POINT_COUNT / 2)
   return (
     <div class={ui.fullscreen}>
       <div class={ui.overlay}>
@@ -220,11 +222,27 @@ export function App() {
           />
           {skipIters()}
         </label>
+        <label>
+          Point Count
+          <input
+            type="range"
+            min={0}
+            max={MAX_POINT_COUNT}
+            step={1e4}
+            value={pointCount()}
+            oninput={(ev) => setPointCount(ev.target.valueAsNumber)}
+          />
+          {(pointCount() / 1000).toFixed(0)} K
+        </label>
       </div>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
         <AutoCanvas class={ui.canvas} pixelRatio={pixelRatio()}>
           <WheelZoomCamera2D>
-            <Flam3 outerIters={outerIters()} skipIters={skipIters()} />
+            <Flam3
+              outerIters={outerIters()}
+              skipIters={skipIters()}
+              pointCount={pointCount()}
+            />
           </WheelZoomCamera2D>
         </AutoCanvas>
       </Root>
