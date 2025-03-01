@@ -3,7 +3,8 @@ import { f32, Infer, struct, vec2f } from 'typegpu/data'
 
 export const Point = struct({
   position: vec2f,
-  color: struct({ c: f32, h: f32 }),
+  /** OkLab a and b. */
+  color: vec2f,
 })
 
 export const outputTextureFormat = 'rgba32float'

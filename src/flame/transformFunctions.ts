@@ -65,6 +65,26 @@ const linear = simpleFn(/* wgsl */ `
     return pos;
   }`)
 
+const randomDisk = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    let r = sqrt(random());
+    let theta = random() * 2 * PI;
+    return r * vec2f(cos(theta), sin(theta));
+  }`,
+  { random, PI },
+)
+
+const gaussian = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    let r = random() + random() + random() + random() - 2;
+    let theta = random() * 2 * PI;
+    return r * vec2f(cos(theta), sin(theta));
+  }`,
+  { random, PI },
+)
+
 const sinusoidal = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
     return vec2f(sin(pos.x), sin(pos.y));
@@ -124,4 +144,6 @@ export const transformFunctions = {
   swirl,
   popcorn,
   pie,
+  randomDisk,
+  gaussian,
 }

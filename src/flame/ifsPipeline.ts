@@ -68,15 +68,15 @@ export function createIFSPipeline(
       linear: transformFunctions.linear.fn,
       swirl: transformFunctions.swirl.fn,
       popcorn: transformFunctions.popcorn.fn,
+      gaussian: transformFunctions.gaussian.fn,
       AffineParams,
       transformAffine,
     }}
 
     const ITER_COUNT = ${insideShaderCount};
 
-    const affine0 = AffineParams(0.7, 0,   0.5, 0, 0.6,  0.0);
-    const affine1 = AffineParams(0.7, 0,   0.0, 0, 0.6,  0.5);
-    const affine2 = AffineParams(0.7, 0,  -0.5, 0, 0.6, -0.5);
+    const affine0 = AffineParams(0.8, 0, 0.5, 0, 0.6, 0.0);
+    const color0 = vec2f(0.25, 0.5);
 
     fn flame0(point: Point) -> Point {
       let pre = transformAffine(affine0, point.position);
@@ -84,26 +84,35 @@ export function createIFSPipeline(
       p += linear(pre);
       p /= 1;
       // p = transformAffine(affine0, p);
-      return Point(p, point.color);
+      let color = mix(point.color, color0, 0.5);
+      return Point(p, color);
     }
+
+    const affine1 = AffineParams(0.7, 0.3, 0.1, 0, 0.6, 0.5);
+    const color1 = vec2f(-0.4, 0.1);
 
     fn flame1(point: Point) -> Point {
       let pre = transformAffine(affine1, point.position);
       var p = vec2f(0);
-      p += 0.7 * linear(pre);
-      p += 0.2 * swirl(pre);
+      p += 0.4 * linear(pre);
+      p += 0.5 * swirl(pre);
       p += 0.1 * popcorn(pre, affine1);
       // p = transformAffine(affine1, p);
-      return Point(p, point.color);
+      let color = mix(point.color, color1, 0.5);
+      return Point(p, color);
     }
+
+    const affine2 = AffineParams(0.6, 0.5, -0.5, 0, 0.5, -0.5);
+    const color2 = vec2f(0, -0.5);
 
     fn flame2(point: Point) -> Point {
       let pre = transformAffine(affine2, point.position);
       var p = vec2f(0);
-      p += 0.25 * linear(pre);
-      p += 0.75 * swirl(pre);
+      p += 0.95 * linear(pre);
+      p += 0.05 * gaussian(pre);
       // p = transformAffine(affine2, p);
-      return Point(p, point.color);
+      let color = mix(point.color, color2, 0.5);
+      return Point(p, color);
     }
 
     @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn computeSomething(
@@ -122,10 +131,10 @@ export function createIFSPipeline(
 
       var point = points[i];
       for (var i = 0; i < ITER_COUNT; i += 1) {
-        let flameIndex = randomU() % 3;
-        if (flameIndex == 0) {
+        let flameIndex = randomU() % 10;
+        if (flameIndex < 5) {
           point = flame0(point);
-        } else if (flameIndex == 1) {
+        } else if (flameIndex < 9) {
           point = flame1(point);
         } else {
           point = flame2(point);

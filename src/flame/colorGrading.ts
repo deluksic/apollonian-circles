@@ -1,11 +1,13 @@
 import { wgsl } from '@/utils/wgsl'
 import tgpu, { LayoutEntryToInput, TgpuRoot } from 'typegpu'
-import { premultipliedAlphaBlend } from '@/utils/blendModes'
-import { f32, struct } from 'typegpu/data'
+import { alphaBlend } from '@/utils/blendModes'
+import { f32, struct, v3f } from 'typegpu/data'
+import { gamutClipPreserveChroma, oklab2rgb, rgb2oklab } from './oklab'
+import { DrawModeFn } from './drawMode'
 
 export const ColorGradingUniforms = struct({
   accumulatedIterationCount: f32,
-  zoom: f32,
+  factor: f32,
 })
 
 const bindGroupLayout = tgpu.bindGroupLayout({
@@ -24,6 +26,8 @@ export function createColorGradingPipeline(
   outputTexture: LayoutEntryToInput<
     (typeof bindGroupLayout)['entries']['outputTexture']
   >,
+  canvasFormat: GPUTextureFormat,
+  drawMode: DrawModeFn,
 ) {
   const { device } = root
 
@@ -35,6 +39,8 @@ export function createColorGradingPipeline(
   const renderShaderCode = wgsl/* wgsl */ `
     ${{
       ...bindGroupLayout.bound,
+      gamutClipPreserveChroma,
+      drawMode,
     }}
 
     const pos = array(
@@ -43,18 +49,35 @@ export function createColorGradingPipeline(
       vec2f(-1, 3)
     );
 
-    @vertex fn vs(
-      @builtin(vertex_index) vertexIndex : u32
-    ) -> @builtin(position) vec4f {
-      return vec4f(pos[vertexIndex], 0.0, 1.0);
+    struct VertexOutput {
+      @builtin(position) pos: vec4f,
+      @location(0) uv: vec2f
     }
 
-    @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
-      let pos2u = vec2u(pos.xy);
-      let count = f32(textureLoad(outputTexture, pos2u, 0).a) / uniforms.accumulatedIterationCount;
-      let factor = clamp(0.1, 40, uniforms.zoom);
-      let value = log(count * factor + 1);
-      return vec4f(vec3f(value, value * 0.8, value * 0.4), 1);
+    @vertex fn vs(
+      @builtin(vertex_index) vertexIndex : u32
+    ) -> VertexOutput {
+      return VertexOutput(
+        vec4f(pos[vertexIndex], 0.0, 1.0), 
+        pos[vertexIndex]
+      );
+    }
+
+    fn clampLength(v: vec2f, maxLength: f32) -> vec2f {
+      let l = length(v);
+      return clamp(l, 0, maxLength) * v / l;
+    }
+
+    @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
+      let pos2u = vec2u(in.pos.xy);
+      let tex = textureLoad(outputTexture, pos2u, 0);
+      let count = tex.a;
+      let adjustedCount = count * uniforms.factor / uniforms.accumulatedIterationCount;
+      // 8 magic number still
+      let value = 8 * log(adjustedCount + 1);
+      let ab = clampLength(tex.gb / count, 0.2);
+      let rgb = gamutClipPreserveChroma(vec3f(drawMode(value), ab));
+      return vec4f(rgb, value);
     }
   `
 
@@ -73,19 +96,28 @@ export function createColorGradingPipeline(
       module: renderModule,
       targets: [
         {
-          format: navigator.gpu.getPreferredCanvasFormat(),
-          blend: premultipliedAlphaBlend,
+          format: canvasFormat,
+          blend: alphaBlend,
         },
       ],
     },
   })
-  return (encoder: GPUCommandEncoder, context: GPUCanvasContext) => {
+  return (
+    encoder: GPUCommandEncoder,
+    context: GPUCanvasContext,
+    backgroundColor: v3f,
+  ) => {
     const pass = encoder.beginRenderPass({
       colorAttachments: [
         {
           loadOp: 'clear',
           storeOp: 'store',
-          clearValue: [0, 0, 0, 1],
+          clearValue: [
+            backgroundColor.x,
+            backgroundColor.y,
+            backgroundColor.z,
+            1,
+          ],
           view: context.getCurrentTexture().createView(),
         },
       ],

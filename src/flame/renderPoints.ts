@@ -32,13 +32,21 @@ export function createRenderPointsPipeline(
       hash,
     }}
 
-    @vertex fn vs(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4f {
-      let position = points[vertex_index].position;
-      return vec4f(worldToClip(position), 0, 1);
+    struct VertexOutput {
+      @builtin(position) position: vec4f,
+      @location(0) color: vec2f
     }
 
-    @fragment fn fs() -> @location(0) vec4f {
-      return vec4f(0, 0, 0, 1);
+    @vertex fn vs(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
+      let point = points[vertex_index];
+      return VertexOutput(
+        vec4f(worldToClip(point.position), 0, 1),
+        point.color
+      );
+    }
+
+    @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
+      return vec4f(0, in.color, 1);
     }
   `
 
