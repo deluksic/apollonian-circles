@@ -12,6 +12,7 @@ import {
 import { vec3f } from 'typegpu/data'
 import { hexToRgbNorm } from './utils/hexToRgb'
 import { lightMode, paintMode } from './flame/drawMode'
+import { Card } from './ControlCard'
 
 export function App() {
   const [pixelRatio, setPixelRatio] = createSignal(0.25)
@@ -24,7 +25,7 @@ export function App() {
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
   return (
     <div class={ui.fullscreen}>
-      <div class={ui.overlay}>
+      <Card>
         <label class={ui.labeledInput}>
           Resolution
           <span>
@@ -129,7 +130,7 @@ export function App() {
             <option value="paint">Paint</option>
           </select>
         </label>
-      </div>
+      </Card>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
         <AutoCanvas class={ui.canvas} pixelRatio={pixelRatio()}>
           <WheelZoomCamera2D>

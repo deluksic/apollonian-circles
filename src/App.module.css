@@ -15,21 +15,6 @@
   image-rendering: pixelated;
 }
 
-.overlay {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  padding: 1rem;
-  color: white;
-  background-color: #0005;
-  backdrop-filter: blur(1rem);
-  border-radius: 1rem;
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 1rem;
-  align-items: center;
-}
-
 .labeled-input {
   display: contents;
 }

@@ -1,14 +1,77 @@
 import { hash, random, seed } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot, UniformFlag } from 'typegpu'
-import { arrayOf, struct, U32, u32, WgslArray, WgslStruct } from 'typegpu/data'
-import { AffineParams, Point, transformAffine } from './types'
 import {
-  collectFlameFunctionProps,
-  createFlameWgsl,
-  FlameFunction,
-} from './flameFunction'
+  arrayOf,
+  struct,
+  U32,
+  u32,
+  vec2f,
+  WgslArray,
+  WgslStruct,
+} from 'typegpu/data'
+import { AffineParams, Point, transformAffine } from './types'
+import { createFlameWgsl, FlameFunction } from './flameFunction'
 import { range } from '@/utils/range'
+
+const flameFunctions: Pick<FlameFunction, 'variations'>[] = [
+  {
+    variations: [{ type: 'linear', weight: 1 }],
+  },
+  {
+    variations: [
+      { type: 'linear', weight: 0.4 },
+      { type: 'swirl', weight: 0.5 },
+      { type: 'popcorn', weight: 0.1 },
+    ],
+  },
+  {
+    variations: [
+      { type: 'pie', weight: 0.95 },
+      { type: 'gaussian', weight: 0.05 },
+    ],
+  },
+]
+
+const flameUniforms = {
+  i0: {
+    probability: 0.5,
+    preAffine: { a: 0.8, b: 0, c: 0.5, d: 0, e: 0.6, f: 0 },
+    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+    color: vec2f(0.1, 0.25),
+    j0: {
+      weight: 1,
+    },
+  },
+  i1: {
+    probability: 0.3,
+    preAffine: { a: 0.7, b: 0.3, c: 0.1, d: 0, e: 0.6, f: 0.5 },
+    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+    color: vec2f(-0.3, 0.1),
+    j0: {
+      weight: 0.4,
+    },
+    j1: {
+      weight: 0.5,
+    },
+    j2: {
+      weight: 0.1,
+    },
+  },
+  i2: {
+    probability: 0.2,
+    preAffine: { a: 0.6, b: 0.5, c: -0.5, d: 0, e: 0.5, f: -0.5 },
+    postAffine: { a: 0, b: -1, c: 0, d: 1, e: 0, f: 0 },
+    color: vec2f(0, -0.3),
+    j0: {
+      weight: 0.95,
+      params: { rotation: 0, slices: 5, thickness: 0.5 },
+    },
+    j1: {
+      weight: 0.05,
+    },
+  },
+}
 
 const { ceil } = Math
 const IFS_GROUP_SIZE = 16
@@ -31,25 +94,6 @@ export function createIFSPipeline(
   computeUniforms: TgpuBuffer<WgslStruct<{ seed: U32 }>> & UniformFlag,
 ) {
   const { device } = root
-
-  const flameFunctions: Pick<FlameFunction, 'variations'>[] = [
-    {
-      variations: [{ type: 'linear', weight: 1 }],
-    },
-    {
-      variations: [
-        { type: 'linear', weight: 0.4 },
-        { type: 'swirl', weight: 0.5 },
-        { type: 'popcorn', weight: 0.1 },
-      ],
-    },
-    {
-      variations: [
-        { type: 'pie', weight: 0.95 },
-        { type: 'gaussian', weight: 0.05 },
-      ],
-    },
-  ]
 
   const flames = flameFunctions.map(createFlameWgsl)
   const flamesObj = Object.fromEntries(
@@ -75,7 +119,7 @@ export function createIFSPipeline(
 
   const flameUniformsBuffer = root.createBuffer(FlameUniforms).$usage('uniform')
 
-  flameUniformsBuffer.write(collectFlameFunctionProps([]))
+  flameUniformsBuffer.write(flameUniforms)
 
   const bindGroup = root.createBindGroup(bindGroupLayout, {
     points,
