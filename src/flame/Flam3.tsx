@@ -24,6 +24,8 @@ type Flam3Props = {
   pointCount: number
   drawMode: DrawModeFn
   backgroundColor: v3f
+  exposure: number
+  maxChroma: number
 }
 
 export function Flam3(props: Flam3Props) {
@@ -88,6 +90,8 @@ export function Flam3(props: Flam3Props) {
       .createBuffer(ColorGradingUniforms, {
         accumulatedIterationCount: 0,
         factor: 1,
+        exposure: 1,
+        maxChroma: 0.2,
       })
       .$usage('uniform')
 
@@ -108,6 +112,8 @@ export function Flam3(props: Flam3Props) {
       colorGradingUniforms.write({
         accumulatedIterationCount: 0,
         factor: factor(),
+        exposure: 1,
+        maxChroma: 0.2,
       })
       const encoder = device.createCommandEncoder()
       {
@@ -133,6 +139,8 @@ export function Flam3(props: Flam3Props) {
       colorGradingUniforms.write({
         accumulatedIterationCount: count,
         factor: factor(),
+        exposure: 8 * Math.exp(props.exposure),
+        maxChroma: props.maxChroma,
       })
       // Encode commands to do the computation
       const encoder = device.createCommandEncoder()

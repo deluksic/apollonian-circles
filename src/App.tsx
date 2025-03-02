@@ -18,67 +18,105 @@ export function App() {
   const [outerIters, setOuterIters] = createSignal(3)
   const [skipIters, setSkipIters] = createSignal(5)
   const [pointCount, setPointCount] = createSignal(1e5)
+  const [exposure, setExposure] = createSignal(0)
+  const [maxChroma, setMaxChroma] = createSignal(0.2)
   const [drawMode, setDrawMode] = createSignal(lightMode)
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
   return (
     <div class={ui.fullscreen}>
       <div class={ui.overlay}>
-        <label>
+        <label class={ui.labeledInput}>
           Resolution
-          <input
-            type="range"
-            min={0.125}
-            max={1}
-            step={0.125}
-            value={pixelRatio()}
-            onInput={(ev) => setPixelRatio(ev.target.valueAsNumber)}
-          />
-          {pixelRatio()}
+          <span>
+            <input
+              type="range"
+              min={0.125}
+              max={1}
+              step={0.125}
+              value={pixelRatio()}
+              onInput={(ev) => setPixelRatio(ev.target.valueAsNumber)}
+            />
+            {pixelRatio()}
+          </span>
         </label>
-        <label>
+        <label class={ui.labeledInput}>
           Outer Iterations
-          <input
-            type="range"
-            min={0}
-            max={MAX_OUTER_ITERS}
-            step={1}
-            value={outerIters()}
-            onInput={(ev) => setOuterIters(ev.target.valueAsNumber)}
-          />
-          {outerIters()}
+          <span>
+            <input
+              type="range"
+              min={0}
+              max={MAX_OUTER_ITERS}
+              step={1}
+              value={outerIters()}
+              onInput={(ev) => setOuterIters(ev.target.valueAsNumber)}
+            />
+            {outerIters()}
+          </span>
         </label>
-        <label>
+        <label class={ui.labeledInput}>
           Skip Iterations
-          <input
-            type="range"
-            min={0}
-            max={MAX_INNER_ITERS}
-            step={1}
-            value={skipIters()}
-            onInput={(ev) => setSkipIters(ev.target.valueAsNumber)}
-          />
-          {skipIters()}
+          <span>
+            <input
+              type="range"
+              min={0}
+              max={MAX_INNER_ITERS}
+              step={1}
+              value={skipIters()}
+              onInput={(ev) => setSkipIters(ev.target.valueAsNumber)}
+            />
+            {skipIters()}
+          </span>
         </label>
-        <label>
+        <label class={ui.labeledInput}>
           Point Count
-          <input
-            type="range"
-            min={0}
-            max={MAX_POINT_COUNT}
-            step={1e4}
-            value={pointCount()}
-            onInput={(ev) => setPointCount(ev.target.valueAsNumber)}
-          />
-          {(pointCount() / 1000).toFixed(0)} K
+          <span>
+            <input
+              type="range"
+              min={0}
+              max={MAX_POINT_COUNT}
+              step={1e4}
+              value={pointCount()}
+              onInput={(ev) => setPointCount(ev.target.valueAsNumber)}
+            />
+            {(pointCount() / 1000).toFixed(0)} K
+          </span>
         </label>
-        <label>
+        <label class={ui.labeledInput}>
+          Exposure
+          <span>
+            <input
+              type="range"
+              min={-4}
+              max={4}
+              step={0.1}
+              value={exposure()}
+              onInput={(ev) => setExposure(ev.target.valueAsNumber)}
+            />
+            {exposure()}
+          </span>
+        </label>
+        <label class={ui.labeledInput}>
+          Max Chroma
+          <span>
+            <input
+              type="range"
+              min={0}
+              max={0.4}
+              step={0.01}
+              value={maxChroma()}
+              onInput={(ev) => setMaxChroma(ev.target.valueAsNumber)}
+            />
+            {maxChroma()}
+          </span>
+        </label>
+        <label class={ui.labeledInput}>
           Background Color
           <input
             type="color"
             onInput={(ev) => setBackgroundColor(hexToRgbNorm(ev.target.value))}
           />
         </label>
-        <label>
+        <label class={ui.labeledInput}>
           Draw Mode
           <select
             onChange={(ev) =>
@@ -101,6 +139,8 @@ export function App() {
               pointCount={pointCount()}
               drawMode={drawMode()}
               backgroundColor={backgroundColor()}
+              exposure={exposure()}
+              maxChroma={maxChroma()}
             />
           </WheelZoomCamera2D>
         </AutoCanvas>

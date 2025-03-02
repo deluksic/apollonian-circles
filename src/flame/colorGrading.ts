@@ -2,12 +2,14 @@ import { wgsl } from '@/utils/wgsl'
 import tgpu, { LayoutEntryToInput, TgpuRoot } from 'typegpu'
 import { alphaBlend } from '@/utils/blendModes'
 import { f32, struct, v3f } from 'typegpu/data'
-import { gamutClipPreserveChroma, oklab2rgb, rgb2oklab } from './oklab'
+import { gamutClipPreserveChroma } from './oklab'
 import { DrawModeFn } from './drawMode'
 
 export const ColorGradingUniforms = struct({
   accumulatedIterationCount: f32,
   factor: f32,
+  exposure: f32,
+  maxChroma: f32,
 })
 
 const bindGroupLayout = tgpu.bindGroupLayout({
@@ -64,20 +66,22 @@ export function createColorGradingPipeline(
     }
 
     fn clampLength(v: vec2f, maxLength: f32) -> vec2f {
+      const eps = 0.0001;
       let l = length(v);
-      return clamp(l, 0, maxLength) * v / l;
+      return min(l, maxLength) * v / max(eps, l);
     }
 
     @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
+      // return vec4(gamutClipPreserveChroma(vec3f(uniforms.factor, clampLength(in.uv, uniforms.maxChroma))), 1);
       let pos2u = vec2u(in.pos.xy);
       let tex = textureLoad(outputTexture, pos2u, 0);
       let count = tex.a;
       let adjustedCount = count * uniforms.factor / uniforms.accumulatedIterationCount;
-      // 8 magic number still
-      let value = 8 * log(adjustedCount + 1);
-      let ab = clampLength(tex.gb / count, 0.2);
+      let value = uniforms.exposure * log(adjustedCount + 1);
+      let ab = clampLength(tex.gb / count, uniforms.maxChroma);
       let rgb = gamutClipPreserveChroma(vec3f(drawMode(value), ab));
-      return vec4f(rgb, value);
+      return vec4f(rgb, 10 * value);
+      return vec4f(vec3f(value), 10 * value);
     }
   `
 

@@ -24,7 +24,12 @@
   background-color: #0005;
   backdrop-filter: blur(1rem);
   border-radius: 1rem;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto auto;
   gap: 1rem;
+  align-items: center;
+}
+
+.labeled-input {
+  display: contents;
 }

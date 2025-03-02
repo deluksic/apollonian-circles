@@ -260,23 +260,14 @@ export const gamutClipPreserveChroma = tgpu['~unstable']
   .does(
     /* wgsl */ `
     (lab: vec3f) -> vec3f {
-
-      let rgb = oklab2rgb(lab);
-      if (rgb.r < 1 && rgb.g < 1 && rgb.b < 1 && rgb.r > 0 && rgb.g > 0 && rgb.b > 0) {
-        return rgb;
-      }
-
       let L = lab.x;
-      let eps = 0.00001;
+      const eps = 0.00001;
       let C = max(eps, length(lab.yz));
       let ab_ = lab.yz / C;
-    
       let L0 = clamp(L, 0, 1);
-    
       let t = findGamutIntersection(ab_.x, ab_.y, L, C, L0);
-      let L_clipped = L0 * (1 - t) + t * L;
-      let C_clipped = t * C;
-    
+      let L_clipped = min(L, mix(L0, L, t));
+      let C_clipped = min(C, t * C);
       return oklab2rgb(vec3f(L_clipped, C_clipped * ab_));
     }
   `,

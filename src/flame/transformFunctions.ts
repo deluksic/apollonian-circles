@@ -1,14 +1,6 @@
 import { random } from '@/shaders/random'
 import tgpu, { TgpuFn } from 'typegpu'
-import {
-  AnyWgslData,
-  f32,
-  Infer,
-  struct,
-  u32,
-  Vec2f,
-  vec2f,
-} from 'typegpu/data'
+import { AnyWgslData, f32, struct, Vec2f, vec2f } from 'typegpu/data'
 import { PI } from './constants'
 import { AffineParams } from './types'
 
@@ -115,8 +107,8 @@ const popcorn = dependentFn(/* wgsl */ `
     );
   }`)
 
-const PieParams = struct({
-  slices: u32,
+export const PieParams = struct({
+  slices: f32,
   rotation: f32,
   thickness: f32,
 })
