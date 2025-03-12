@@ -72,16 +72,14 @@ export function createColorGradingPipeline(
     }
 
     @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
-      // return vec4(gamutClipPreserveChroma(vec3f(uniforms.factor, clampLength(in.uv, uniforms.maxChroma))), 1);
       let pos2u = vec2u(in.pos.xy);
       let tex = textureLoad(outputTexture, pos2u, 0);
       let count = tex.a;
       let adjustedCount = count * uniforms.factor / uniforms.accumulatedIterationCount;
-      let value = uniforms.exposure * log(adjustedCount + 1);
+      let value = uniforms.exposure * pow(log(adjustedCount + 1), 0.4545);
       let ab = clampLength(tex.gb / count, uniforms.maxChroma);
       let rgb = gamutClipPreserveChroma(vec3f(drawMode(value), ab));
-      return vec4f(rgb, 10 * value);
-      return vec4f(vec3f(value), 10 * value);
+      return vec4f(rgb, value);
     }
   `
 

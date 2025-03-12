@@ -1,12 +1,13 @@
-import { hash, random, seed } from '@/shaders/random'
+import { hash, random, setSeed } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot, UniformFlag } from 'typegpu'
 import {
   arrayOf,
   struct,
-  U32,
   u32,
   vec2f,
+  Vec4u,
+  vec4u,
   WgslArray,
   WgslStruct,
 } from 'typegpu/data'
@@ -77,7 +78,7 @@ const { ceil } = Math
 const IFS_GROUP_SIZE = 16
 
 export const ComputeUniforms = struct({
-  seed: u32,
+  seed: vec4u,
 })
 
 const outerIterationBindGroupLayout = tgpu.bindGroupLayout({
@@ -91,7 +92,7 @@ export function createIFSPipeline(
   maxOuterIterCount: number,
   insideShaderCount: number,
   points: TgpuBuffer<WgslArray<typeof Point>> & StorageFlag,
-  computeUniforms: TgpuBuffer<WgslStruct<{ seed: U32 }>> & UniformFlag,
+  computeUniforms: TgpuBuffer<WgslStruct<{ seed: Vec4u }>> & UniformFlag,
 ) {
   const { device } = root
 
@@ -142,7 +143,7 @@ export function createIFSPipeline(
       ...flamesObj,
       Point,
       hash,
-      seed,
+      setSeed,
       random,
       AffineParams,
       transformAffine,
@@ -150,21 +151,23 @@ export function createIFSPipeline(
 
     const ITER_COUNT = ${insideShaderCount};
 
-    @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn computeSomething(
-      @builtin(num_workgroups) num_workgroups: vec3<u32>,
-      @builtin(workgroup_id) workgroup_id : vec3<u32>,
-      @builtin(local_invocation_index) local_invocation_index: u32
+    @compute @workgroup_size(${IFS_GROUP_SIZE}, 1, 1) fn cs(
+      @builtin(num_workgroups) numWorkgroups: vec3<u32>,
+      @builtin(workgroup_id) workgroupId : vec3<u32>,
+      @builtin(local_invocation_index) localInvocationIndex: u32
     ) {
-      let workgroup_index =
-        workgroup_id.x +
-        workgroup_id.y * num_workgroups.x +
-        workgroup_id.z * num_workgroups.x * num_workgroups.y;
+      let workgroupIndex =
+        workgroupId.x +
+        workgroupId.y * numWorkgroups.x +
+        workgroupId.z * numWorkgroups.x * numWorkgroups.y;
 
-      let i = workgroup_index * ${IFS_GROUP_SIZE} + local_invocation_index;
+      let pointIndex = workgroupIndex * ${IFS_GROUP_SIZE} + localInvocationIndex;
 
-      seed(computeUniforms.seed ^ hash(workgroup_index) ^ hash(outerIterationIndex));
+      var seed = computeUniforms.seed + (hash(pointIndex) ^ hash(outerIterationIndex));
+      setSeed(seed);
 
-      var point = points[i];
+      var point = points[pointIndex];
+
       for (var i = 0; i < ITER_COUNT; i += 1) {
         let flameIndex = random();
         var probabilitySum = 0.;
@@ -181,7 +184,7 @@ export function createIFSPipeline(
           .join('\n')}
       }
 
-      points[i] = point;
+      points[pointIndex] = point;
     }
   `
 

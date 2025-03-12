@@ -89,7 +89,7 @@ export function App() {
               type="range"
               min={-4}
               max={4}
-              step={0.1}
+              step={0.05}
               value={exposure()}
               onInput={(ev) => setExposure(ev.target.valueAsNumber)}
             />

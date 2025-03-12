@@ -11,8 +11,10 @@ import { useCamera } from '../lib/CameraContext'
 import { useCanvas } from '../lib/CanvasContext'
 import { useRootContext } from '../lib/RootContext'
 import { createAnimationFrame } from '../utils/createAnimationFrame'
-import { arrayOf, v3f } from 'typegpu/data'
+import { arrayOf, v3f, vec4f, vec4u } from 'typegpu/data'
 import { DrawModeFn } from './drawMode'
+import { usePointer } from '@/utils/usePointer'
+import { clamp } from 'typegpu/std'
 
 export const MAX_POINT_COUNT = 1e6
 export const MAX_OUTER_ITERS = 15
@@ -31,7 +33,42 @@ type Flam3Props = {
 export function Flam3(props: Flam3Props) {
   const camera = useCamera()
   const { root, device } = useRootContext()
-  const { context, canvasSize, pixelRatio } = useCanvas()
+  const { context, canvasSize, pixelRatio, canvas } = useCanvas()
+  const pointer = usePointer(canvas)
+  const queryBuffer = root.createBuffer(vec4f, vec4f())
+
+  function readCountUnderPoiner(frameIndex: number) {
+    const o = outputTexture()
+    const p = pointer()
+    if (frameIndex % 10 === 0 && p && o) {
+      const rect = canvas.getBoundingClientRect()
+      const x = Math.floor(
+        clamp(
+          (p.clientX - rect.x) * pixelRatio() * devicePixelRatio,
+          0,
+          o.props.size[0] - 1,
+        ),
+      )
+      const y = Math.floor(
+        clamp(
+          (p.clientY - rect.y) * pixelRatio() * devicePixelRatio,
+          0,
+          o.props.size[1] - 1,
+        ),
+      )
+      const encoder = device.createCommandEncoder()
+      encoder.copyTextureToBuffer(
+        {
+          texture: root.unwrap(o),
+          origin: { x, y },
+        },
+        queryBuffer,
+        { width: 1, height: 1 },
+      )
+      device.queue.submit([encoder.finish()])
+      queryBuffer.read().then((value) => console.log(x, y, value.w))
+    }
+  }
 
   const factor = createMemo(
     () => (camera.zoom() * pixelRatio()) ** 2 / (props.pointCount / 1e5),
@@ -45,8 +82,16 @@ export function Flam3(props: Flam3Props) {
     points.destroy()
   })
 
-  createEffect(() => {
-    console.log('Creating everything from scratch.')
+  const colorGradingUniforms = root
+    .createBuffer(ColorGradingUniforms, {
+      accumulatedIterationCount: 0,
+      factor: 1,
+      exposure: 1,
+      maxChroma: 0.2,
+    })
+    .$usage('uniform')
+
+  const outputTexture = createMemo(() => {
     const { width, height } = canvasSize()
     if (width * height === 0) {
       return
@@ -61,10 +106,35 @@ export function Flam3(props: Flam3Props) {
       .$name('outputTexture')
     onCleanup(() => outputTexture.destroy())
 
-    const outputTextureView = root.unwrap(outputTexture).createView()
+    return outputTexture
+  })
+
+  const runColorGradingPipeline = createMemo(() => {
+    const o = outputTexture()
+    if (!o) {
+      return undefined
+    }
+    return createColorGradingPipeline(
+      root,
+      colorGradingUniforms,
+      o,
+      context.getConfiguration()?.format ??
+        navigator.gpu.getPreferredCanvasFormat(),
+      props.drawMode,
+    )
+  })
+
+  createEffect(() => {
+    console.log('Creating everything from scratch.')
+    const o = outputTexture()
+    if (!o) {
+      return undefined
+    }
+
+    const outputTextureView = root.unwrap(o).createView()
 
     const computeUniforms = root
-      .createBuffer(ComputeUniforms, { seed: 0 })
+      .createBuffer(ComputeUniforms, { seed: vec4u() })
       .$usage('uniform')
 
     const runInitPoints = createInitPointsPipeline(
@@ -86,24 +156,7 @@ export function Flam3(props: Flam3Props) {
       points,
       computeUniforms,
     )
-    const colorGradingUniforms = root
-      .createBuffer(ColorGradingUniforms, {
-        accumulatedIterationCount: 0,
-        factor: 1,
-        exposure: 1,
-        maxChroma: 0.2,
-      })
-      .$usage('uniform')
-
     const renderPoints = createRenderPointsPipeline(root, camera, points)
-    const runColorGradingPipeline = createColorGradingPipeline(
-      root,
-      colorGradingUniforms,
-      outputTexture,
-      context.getConfiguration()?.format ??
-        navigator.gpu.getPreferredCanvasFormat(),
-      props.drawMode,
-    )
 
     let count = 0
     createEffect(() => {
@@ -134,33 +187,24 @@ export function Flam3(props: Flam3Props) {
 
     createAnimationFrame(() => {
       camera.update()
-      computeUniforms.write({ seed: Math.random() * 0xffff })
+      computeUniforms.write({
+        // @ts-expect-error
+        seed: vec4u(...crypto.getRandomValues(new Uint32Array(4))),
+      })
       count += props.outerIters
       colorGradingUniforms.write({
         accumulatedIterationCount: count,
         factor: factor(),
-        exposure: 8 * Math.exp(props.exposure),
+        exposure: 2 * Math.exp(props.exposure),
         maxChroma: props.maxChroma,
       })
+
       // Encode commands to do the computation
       const encoder = device.createCommandEncoder()
       {
         const pass = encoder.beginComputePass()
         runInitPoints(pass, props.pointCount)
         runSkipIfs(0, pass, props.pointCount)
-        pass.end()
-      }
-      {
-        const pass = encoder.beginRenderPass({
-          colorAttachments: [
-            {
-              view: outputTextureView,
-              loadOp: 'load',
-              storeOp: 'store',
-            },
-          ],
-        })
-        renderPoints(pass, props.pointCount)
         pass.end()
       }
       for (let i = 0; i < props.outerIters; ++i) {
@@ -184,7 +228,9 @@ export function Flam3(props: Flam3Props) {
         }
       }
 
-      runColorGradingPipeline(encoder, context, props.backgroundColor)
+      runColorGradingPipeline()?.(encoder, context, props.backgroundColor)
+
+      // readCountUnderPoiner(count)
 
       device.queue.submit([encoder.finish()])
     })

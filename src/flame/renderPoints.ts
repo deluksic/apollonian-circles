@@ -1,5 +1,4 @@
 import { CameraContext } from '@/lib/CameraContext'
-import { hash } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot } from 'typegpu'
 import { arrayOf, WgslArray } from 'typegpu/data'
@@ -29,7 +28,6 @@ export function createRenderPointsPipeline(
       ...camera.BindGroupLayout.bound,
       ...bindGroupLayout.bound,
       worldToClip: camera.wgsl.worldToClip,
-      hash,
     }}
 
     struct VertexOutput {
