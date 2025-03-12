@@ -163,7 +163,7 @@ export function createIFSPipeline(
 
       let pointIndex = workgroupIndex * ${IFS_GROUP_SIZE} + localInvocationIndex;
 
-      var seed = computeUniforms.seed + (hash(pointIndex) ^ hash(outerIterationIndex));
+      var seed = computeUniforms.seed + (hash(pointIndex + 1000) ^ hash(outerIterationIndex + 1000));
       setSeed(seed);
 
       var point = points[pointIndex];

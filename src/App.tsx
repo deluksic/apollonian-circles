@@ -23,6 +23,7 @@ export function App() {
   const [maxChroma, setMaxChroma] = createSignal(0.2)
   const [drawMode, setDrawMode] = createSignal(lightMode)
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
+  const [enableBlur, setEnableBlur] = createSignal(true)
   return (
     <div class={ui.fullscreen}>
       <Card>
@@ -111,6 +112,14 @@ export function App() {
           </span>
         </label>
         <label class={ui.labeledInput}>
+          Enable blur
+          <input
+            type="checkbox"
+            checked={enableBlur()}
+            onInput={(ev) => setEnableBlur(ev.target.checked)}
+          />
+        </label>
+        <label class={ui.labeledInput}>
           Background Color
           <input
             type="color"
@@ -142,6 +151,7 @@ export function App() {
               backgroundColor={backgroundColor()}
               exposure={exposure()}
               maxChroma={maxChroma()}
+              enableBlur={enableBlur()}
             />
           </WheelZoomCamera2D>
         </AutoCanvas>

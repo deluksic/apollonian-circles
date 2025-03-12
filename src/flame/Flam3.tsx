@@ -15,6 +15,7 @@ import { arrayOf, v3f, vec4f, vec4u } from 'typegpu/data'
 import { DrawModeFn } from './drawMode'
 import { usePointer } from '@/utils/usePointer'
 import { clamp } from 'typegpu/std'
+import { createBlurPipeline } from './blurPipeline'
 
 export const MAX_POINT_COUNT = 1e6
 export const MAX_OUTER_ITERS = 15
@@ -28,6 +29,7 @@ type Flam3Props = {
   backgroundColor: v3f
   exposure: number
   maxChroma: number
+  enableBlur: boolean
 }
 
 export function Flam3(props: Flam3Props) {
@@ -38,28 +40,29 @@ export function Flam3(props: Flam3Props) {
   const queryBuffer = root.createBuffer(vec4f, vec4f())
 
   function readCountUnderPoiner(frameIndex: number) {
-    const o = outputTexture()
+    const o = outputTextures()
     const p = pointer()
     if (frameIndex % 10 === 0 && p && o) {
+      const { accumulationTexture } = o
       const rect = canvas.getBoundingClientRect()
       const x = Math.floor(
         clamp(
           (p.clientX - rect.x) * pixelRatio() * devicePixelRatio,
           0,
-          o.props.size[0] - 1,
+          accumulationTexture.props.size[0] - 1,
         ),
       )
       const y = Math.floor(
         clamp(
           (p.clientY - rect.y) * pixelRatio() * devicePixelRatio,
           0,
-          o.props.size[1] - 1,
+          accumulationTexture.props.size[1] - 1,
         ),
       )
       const encoder = device.createCommandEncoder()
       encoder.copyTextureToBuffer(
         {
-          texture: root.unwrap(o),
+          texture: root.unwrap(accumulationTexture),
           origin: { x, y },
         },
         queryBuffer,
@@ -91,33 +94,43 @@ export function Flam3(props: Flam3Props) {
     })
     .$usage('uniform')
 
-  const outputTexture = createMemo(() => {
+  const outputTextures = createMemo(() => {
     const { width, height } = canvasSize()
     if (width * height === 0) {
       return
     }
 
-    const outputTexture = root['~unstable']
+    const accumulationTexture = root['~unstable']
       .createTexture({
         format: outputTextureFormat,
         size: [width, height],
       })
       .$usage('sampled', 'render')
       .$name('outputTexture')
-    onCleanup(() => outputTexture.destroy())
+    onCleanup(() => accumulationTexture.destroy())
 
-    return outputTexture
+    const postprocessTexture = root['~unstable']
+      .createTexture({
+        format: outputTextureFormat,
+        size: [width, height],
+      })
+      .$usage('sampled', 'storage')
+      .$name('outputTexture')
+    onCleanup(() => postprocessTexture.destroy())
+
+    return { accumulationTexture, postprocessTexture }
   })
 
   const runColorGradingPipeline = createMemo(() => {
-    const o = outputTexture()
+    const o = outputTextures()
     if (!o) {
       return undefined
     }
+    const { accumulationTexture, postprocessTexture } = o
     return createColorGradingPipeline(
       root,
       colorGradingUniforms,
-      o,
+      props.enableBlur ? postprocessTexture : accumulationTexture,
       context.getConfiguration()?.format ??
         navigator.gpu.getPreferredCanvasFormat(),
       props.drawMode,
@@ -126,12 +139,13 @@ export function Flam3(props: Flam3Props) {
 
   createEffect(() => {
     console.log('Creating everything from scratch.')
-    const o = outputTexture()
+    const o = outputTextures()
     if (!o) {
       return undefined
     }
 
-    const outputTextureView = root.unwrap(o).createView()
+    const { accumulationTexture, postprocessTexture } = o
+    const outputTextureView = root.unwrap(accumulationTexture).createView()
 
     const computeUniforms = root
       .createBuffer(ComputeUniforms, { seed: vec4u() })
@@ -157,6 +171,12 @@ export function Flam3(props: Flam3Props) {
       computeUniforms,
     )
     const renderPoints = createRenderPointsPipeline(root, camera, points)
+    const runBlur = createBlurPipeline(
+      root,
+      accumulationTexture.props.size,
+      accumulationTexture,
+      postprocessTexture,
+    )
 
     let count = 0
     createEffect(() => {
@@ -226,6 +246,11 @@ export function Flam3(props: Flam3Props) {
           renderPoints(pass, props.pointCount)
           pass.end()
         }
+      }
+      if (props.enableBlur) {
+        const pass = encoder.beginComputePass()
+        runBlur(pass)
+        pass.end()
       }
 
       runColorGradingPipeline()?.(encoder, context, props.backgroundColor)
