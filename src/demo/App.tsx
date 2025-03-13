@@ -22,7 +22,6 @@ import {
   setDebug,
 } from './state'
 import { useCanvas } from '@/lib/CanvasContext'
-import { createPromiseCallbacks } from '@/utils/createPromiseCallbacks'
 import { vec2 } from 'wgpu-matrix'
 import { Root } from '@/lib/Root'
 import { AutoCanvas } from '@/lib/AutoCanvas'
@@ -95,7 +94,7 @@ function Inside() {
       return
     }
     el.setPointerCapture(ev.pointerId)
-    const { promise, resolve } = createPromiseCallbacks<PointerEvent>()
+    const { promise, resolve } = Promise.withResolvers<PointerEvent>()
     el.addEventListener('pointerup', resolve)
     promise.finally(() => {
       el.removeEventListener('pointerup', resolve)
