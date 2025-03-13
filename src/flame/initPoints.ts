@@ -59,16 +59,16 @@ export function createInitPointsPipeline(
         workgroup_id.y * num_workgroups.x +
         workgroup_id.z * num_workgroups.x * num_workgroups.y;
 
-      let i = workgroup_index * ${INIT_GROUP_SIZE} + local_invocation_index;
-      var point = points[i];
-      setSeed((computeUniforms.seed ^ point.seed) + hash(i + 1000));
+      let pointIndex = workgroup_index * ${INIT_GROUP_SIZE} + local_invocation_index;
+      var point = points[pointIndex];
+      setSeed((computeUniforms.seed ^ point.seed) + hash(1234 * pointIndex + point.seed.x));
 
       // uniform disk
       let r = sqrt(random());
       let theta = random() * 2 * PI;
       point.position = r * vec2f(cos(theta), sin(theta));
       point.seed = randomState;
-      points[i] = point;
+      points[pointIndex] = point;
     }
   `
 

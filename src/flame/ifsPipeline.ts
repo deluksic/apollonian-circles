@@ -149,7 +149,7 @@ export function createIFSPipeline(
 
       var point = points[pointIndex];
 
-      var seed = (computeUniforms.seed ^ point.seed) + hash(pointIndex + 1000);
+      var seed = (computeUniforms.seed ^ point.seed) + hash(1234 * pointIndex + point.seed.x);
       setSeed(seed);
 
       for (var i = 0; i < ITER_COUNT; i += 1) {
