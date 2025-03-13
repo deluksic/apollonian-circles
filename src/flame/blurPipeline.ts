@@ -44,16 +44,17 @@ export function createBlurPipeline(
       let uv = vec2i(global_invocation_id.xy);
       let centralTexel = textureLoad(accumulationTexture, uv, 0);
       let count = centralTexel.a;
-      let stdDev = sqrt(count);
+      let stdDev = 10 + sqrt(count);
       var total = centralTexel;
       var totalWeight = 1.0;
-      for(var j = -2; j <= 2; j += 1) {
-        for(var i = -2; i <= 2; i += 1) {
+      const HALF_SIZE = 2;
+      for(var j = -HALF_SIZE; j <= HALF_SIZE; j += 1) {
+        for(var i = -HALF_SIZE; i <= HALF_SIZE; i += 1) {
           if (i == 0 && j == 0) { continue; }
           let shift = vec2i(i, j);
           let texel = textureLoad(accumulationTexture, uv + shift, 0);
-          let stdDiff = stdDev / (abs(texel.a - count) + 1);
-          let shiftDiff = smoothstep(0, 3, length(vec2f(shift)));
+          let stdDiff = stdDev / (4 * abs(texel.a - count) + 1);
+          let shiftDiff = smoothstep(3, 0, length(vec2f(shift)));
           let weight = stdDiff * shiftDiff;
           total += texel * weight;
           totalWeight += weight;
