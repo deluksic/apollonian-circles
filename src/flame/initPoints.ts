@@ -1,4 +1,4 @@
-import { hash, random, setSeed } from '@/shaders/random'
+import { hash, random, randomState, setSeed } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, {
   LayoutEntryToInput,
@@ -41,6 +41,7 @@ export function createInitPointsPipeline(
     ${{
       ...bindGroupLayout.bound,
       setSeed,
+      randomState,
       random,
       hash,
       PI,
@@ -57,12 +58,15 @@ export function createInitPointsPipeline(
         workgroup_id.z * num_workgroups.x * num_workgroups.y;
 
       let i = workgroup_index * ${INIT_GROUP_SIZE} + local_invocation_index;
-      setSeed(computeUniforms.seed + hash(i));
+      var point = points[i];
+      setSeed((computeUniforms.seed ^ point.seed) + hash(i + 1000));
 
       // uniform disk
       let r = sqrt(random());
       let theta = random() * 2 * PI;
-      points[i].position = r * vec2f(cos(theta), sin(theta));
+      point.position = r * vec2f(cos(theta), sin(theta));
+      point.seed = randomState;
+      points[i] = point;
     }
   `
 

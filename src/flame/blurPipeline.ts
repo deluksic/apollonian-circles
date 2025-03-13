@@ -53,7 +53,7 @@ export function createBlurPipeline(
           if (i == 0 && j == 0) { continue; }
           let shift = vec2i(i, j);
           let texel = textureLoad(accumulationTexture, uv + shift, 0);
-          let stdDiff = stdDev / (4 * abs(texel.a - count) + 1);
+          let stdDiff = min(stdDev / (abs(texel.a - count) + 1), 1);
           let shiftDiff = smoothstep(3, 0, length(vec2f(shift)));
           let weight = stdDiff * shiftDiff;
           total += texel * weight;

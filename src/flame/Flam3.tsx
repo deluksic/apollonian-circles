@@ -224,13 +224,13 @@ export function Flam3(props: Flam3Props) {
       {
         const pass = encoder.beginComputePass()
         runInitPoints(pass, props.pointCount)
-        runSkipIfs(0, pass, props.pointCount)
+        runSkipIfs(pass, props.pointCount)
         pass.end()
       }
       for (let i = 0; i < props.outerIters; ++i) {
         {
           const pass = encoder.beginComputePass()
-          runIfs(i, pass, props.pointCount)
+          runIfs(pass, props.pointCount)
           pass.end()
         }
         {

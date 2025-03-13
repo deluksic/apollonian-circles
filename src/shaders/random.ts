@@ -1,7 +1,10 @@
 import tgpu from 'typegpu'
 import { f32, u32, vec4u } from 'typegpu/data'
 
-const randomState = tgpu['~unstable'].privateVar(vec4u, vec4u(0, 0, 0, 0))
+export const randomState = tgpu['~unstable'].privateVar(
+  vec4u,
+  vec4u(0, 0, 0, 0),
+)
 
 const tausStep = tgpu['~unstable'].fn([u32, u32, u32, u32, u32], u32)
   .does(/* wgsl */ `

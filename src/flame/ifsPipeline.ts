@@ -1,10 +1,9 @@
-import { hash, random, setSeed } from '@/shaders/random'
+import { hash, random, randomState, setSeed } from '@/shaders/random'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot, UniformFlag } from 'typegpu'
 import {
   arrayOf,
   struct,
-  u32,
   vec2f,
   Vec4u,
   vec4u,
@@ -81,12 +80,6 @@ export const ComputeUniforms = struct({
   seed: vec4u,
 })
 
-const outerIterationBindGroupLayout = tgpu.bindGroupLayout({
-  outerIterationIndex: {
-    uniform: u32,
-  },
-})
-
 export function createIFSPipeline(
   root: TgpuRoot,
   maxOuterIterCount: number,
@@ -128,23 +121,15 @@ export function createIFSPipeline(
     flameUniforms: flameUniformsBuffer,
   })
 
-  const perOuterIterationBindGroups = Array.from({
-    length: maxOuterIterCount,
-  }).map((_, i) =>
-    root.createBindGroup(outerIterationBindGroupLayout, {
-      outerIterationIndex: root.createBuffer(u32, i).$usage('uniform'),
-    }),
-  )
-
   const ifsShaderCode = wgsl/* wgsl */ `
     ${{
       ...bindGroupLayout.bound,
-      ...outerIterationBindGroupLayout.bound,
       ...flamesObj,
       Point,
       hash,
       setSeed,
       random,
+      randomState,
       AffineParams,
       transformAffine,
     }}
@@ -163,10 +148,10 @@ export function createIFSPipeline(
 
       let pointIndex = workgroupIndex * ${IFS_GROUP_SIZE} + localInvocationIndex;
 
-      var seed = computeUniforms.seed + (hash(pointIndex + 1000) ^ hash(outerIterationIndex + 1000));
-      setSeed(seed);
-
       var point = points[pointIndex];
+
+      var seed = (computeUniforms.seed ^ point.seed) + hash(pointIndex + 1000);
+      setSeed(seed);
 
       for (var i = 0; i < ITER_COUNT; i += 1) {
         let flameIndex = random();
@@ -184,6 +169,7 @@ export function createIFSPipeline(
           .join('\n')}
       }
 
+      point.seed = randomState;
       points[pointIndex] = point;
     }
   `
@@ -194,30 +180,16 @@ export function createIFSPipeline(
 
   const ifsPipeline = device.createComputePipeline({
     layout: device.createPipelineLayout({
-      bindGroupLayouts: [
-        root.unwrap(bindGroupLayout),
-        root.unwrap(outerIterationBindGroupLayout),
-      ],
+      bindGroupLayouts: [root.unwrap(bindGroupLayout)],
     }),
     compute: {
       module: ifsModule,
     },
   })
 
-  return (
-    iteration: number,
-    pass: GPUComputePassEncoder,
-    pointCount: number,
-  ) => {
-    const iterationBindGroup = perOuterIterationBindGroups[iteration]
-    if (!iterationBindGroup) {
-      throw new Error(
-        `Requested more iterations (${iteration}) than initially specified ${maxOuterIterCount}.`,
-      )
-    }
+  return (pass: GPUComputePassEncoder, pointCount: number) => {
     pass.setPipeline(ifsPipeline)
     pass.setBindGroup(0, root.unwrap(bindGroup))
-    pass.setBindGroup(1, root.unwrap(iterationBindGroup))
     pass.dispatchWorkgroups(
       ceil(pointCount / (IFS_GROUP_SIZE * IFS_GROUP_SIZE)),
       IFS_GROUP_SIZE,

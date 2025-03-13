@@ -1,10 +1,11 @@
 import tgpu from 'typegpu'
-import { f32, Infer, struct, vec2f } from 'typegpu/data'
+import { f32, Infer, struct, vec2f, vec4u } from 'typegpu/data'
 
 export const Point = struct({
   position: vec2f,
   /** OkLab a and b. */
   color: vec2f,
+  seed: vec4u,
 })
 
 export const outputTextureFormat = 'rgba32float'
