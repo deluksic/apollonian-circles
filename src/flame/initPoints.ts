@@ -11,6 +11,8 @@ import { Point } from './types'
 import { ComputeUniforms } from './ifsPipeline'
 import { PI } from './constants'
 
+const { ceil } = Math
+
 const INIT_GROUP_SIZE = 32
 
 const bindGroupLayout = tgpu.bindGroupLayout({
@@ -87,7 +89,7 @@ export function createInitPointsPipeline(
     pass.setPipeline(initPointsPipeline)
     pass.setBindGroup(0, root.unwrap(bindGroup))
     pass.dispatchWorkgroups(
-      pointCount / (INIT_GROUP_SIZE * INIT_GROUP_SIZE),
+      ceil(pointCount / (INIT_GROUP_SIZE * INIT_GROUP_SIZE)),
       INIT_GROUP_SIZE,
       1,
     )
