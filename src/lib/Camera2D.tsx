@@ -65,7 +65,7 @@ export function Camera2D(props: ParentProps<Camera2DProps>) {
     .$usage('uniform')
     .$name('Camera2DUniforms')
 
-  const uniformBindGroup = Camera2DBindGroupLayout.populate({
+  const uniformBindGroup = root.createBindGroup(Camera2DBindGroupLayout, {
     camera2DUniforms: uniformsBuffer,
   })
 
@@ -102,8 +102,8 @@ export function Camera2D(props: ParentProps<Camera2DProps>) {
     return vec3.transformMat3(
       vec3f(x, y, 1),
       uniforms().viewMatrixInverse,
-      vec2f(),
-    )
+      vec3f(),
+    ).xy
   }
 
   function update() {

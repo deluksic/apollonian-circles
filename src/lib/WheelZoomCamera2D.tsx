@@ -1,6 +1,7 @@
 import { Camera2D } from '@/lib/Camera2D'
 import { useCamera } from '@/lib/CameraContext'
 import { useCanvas } from '@/lib/CanvasContext'
+import { createDragHandler } from '@/utils/createDragHandler'
 import { eventToClip } from '@/utils/eventToClip'
 import {
   ParentProps,
@@ -10,12 +11,32 @@ import {
   onCleanup,
 } from 'solid-js'
 import { vec2f, v2f } from 'typegpu/data'
+import { vec2 } from 'wgpu-matrix'
 
 export function WheelZoomCamera2D(props: ParentProps) {
   const { canvas } = useCanvas()
   const [zoom, setZoom] = createSignal(1)
   const [position, setPosition] = createSignal(vec2f())
   let clipToWorld: (clip: v2f) => v2f | undefined
+
+  const pan = createDragHandler((initEvent) => {
+    if (!clipToWorld) {
+      return
+    }
+    const grabPosition = clipToWorld(eventToClip(initEvent))
+    if (!grabPosition) {
+      return
+    }
+    return {
+      onPointerMove(event) {
+        const pos = clipToWorld(eventToClip(event))
+        if (!pos) {
+          return
+        }
+        setPosition((p) => vec2.sub(p, vec2.sub(pos, grabPosition), vec2f()))
+      },
+    }
+  })
 
   function onWheel(ev: WheelEvent) {
     ev.preventDefault()
@@ -36,8 +57,10 @@ export function WheelZoomCamera2D(props: ParentProps) {
   }
 
   createEffect(() => {
+    canvas.addEventListener('pointerdown', pan)
     canvas.addEventListener('wheel', onWheel, { passive: false })
     onCleanup(() => {
+      canvas.removeEventListener('pointerdown', pan)
       canvas.removeEventListener('wheel', onWheel)
     })
   })

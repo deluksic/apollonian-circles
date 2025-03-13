@@ -82,7 +82,6 @@ export const ComputeUniforms = struct({
 
 export function createIFSPipeline(
   root: TgpuRoot,
-  maxOuterIterCount: number,
   insideShaderCount: number,
   points: TgpuBuffer<WgslArray<typeof Point>> & StorageFlag,
   computeUniforms: TgpuBuffer<WgslStruct<{ seed: Vec4u }>> & UniformFlag,

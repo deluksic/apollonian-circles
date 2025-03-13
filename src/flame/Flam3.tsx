@@ -11,7 +11,7 @@ import { useCamera } from '../lib/CameraContext'
 import { useCanvas } from '../lib/CanvasContext'
 import { useRootContext } from '../lib/RootContext'
 import { createAnimationFrame } from '../utils/createAnimationFrame'
-import { arrayOf, v3f, vec4f, vec4u } from 'typegpu/data'
+import { arrayOf, v3f, vec2f, vec4f, vec4u } from 'typegpu/data'
 import { DrawModeFn } from './drawMode'
 import { usePointer } from '@/utils/usePointer'
 import { clamp } from 'typegpu/std'
@@ -158,18 +158,11 @@ export function Flam3(props: Flam3Props) {
     )
     const runSkipIfs = createIFSPipeline(
       root,
-      1,
       props.skipIters,
       points,
       computeUniforms,
     )
-    const runIfs = createIFSPipeline(
-      root,
-      MAX_OUTER_ITERS,
-      1,
-      points,
-      computeUniforms,
-    )
+    const runIfs = createIFSPipeline(root, 1, points, computeUniforms)
     const renderPoints = createRenderPointsPipeline(root, camera, points)
     const runBlur = createBlurPipeline(
       root,
@@ -182,6 +175,7 @@ export function Flam3(props: Flam3Props) {
     createEffect(() => {
       count = 0
       props.outerIters
+      camera.js.clipToWorld(vec2f())
       colorGradingUniforms.write({
         accumulatedIterationCount: 0,
         factor: factor(),
