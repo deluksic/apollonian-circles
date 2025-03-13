@@ -11,67 +11,12 @@ import {
   WgslStruct,
 } from 'typegpu/data'
 import { AffineParams, Point, transformAffine } from './types'
-import { createFlameWgsl, FlameFunction } from './flameFunction'
+import {
+  createFlameWgsl,
+  extractFlameUniforms,
+  FlameFunction,
+} from './flameFunction'
 import { range } from '@/utils/range'
-
-const flameFunctions: Pick<FlameFunction, 'variations'>[] = [
-  {
-    variations: [{ type: 'linear', weight: 1 }],
-  },
-  {
-    variations: [
-      { type: 'linear', weight: 0.4 },
-      { type: 'swirl', weight: 0.5 },
-      { type: 'popcorn', weight: 0.1 },
-    ],
-  },
-  {
-    variations: [
-      { type: 'pie', weight: 0.95 },
-      { type: 'gaussian', weight: 0.05 },
-    ],
-  },
-]
-
-const flameUniforms = {
-  i0: {
-    probability: 0.5,
-    preAffine: { a: 0.8, b: 0, c: 0.5, d: 0, e: 0.6, f: 0 },
-    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-    color: vec2f(0.1, 0.25),
-    j0: {
-      weight: 1,
-    },
-  },
-  i1: {
-    probability: 0.3,
-    preAffine: { a: 0.7, b: 0.3, c: 0.1, d: 0, e: 0.6, f: 0.5 },
-    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-    color: vec2f(-0.3, 0.1),
-    j0: {
-      weight: 0.4,
-    },
-    j1: {
-      weight: 0.5,
-    },
-    j2: {
-      weight: 0.1,
-    },
-  },
-  i2: {
-    probability: 0.2,
-    preAffine: { a: 0.6, b: 0.5, c: -0.5, d: 0, e: 0.5, f: -0.5 },
-    postAffine: { a: 0, b: -1, c: 0, d: 1, e: 0, f: 0 },
-    color: vec2f(0, -0.3),
-    j0: {
-      weight: 0.95,
-      params: { rotation: 0, slices: 5, thickness: 0.5 },
-    },
-    j1: {
-      weight: 0.05,
-    },
-  },
-}
 
 const { ceil } = Math
 const IFS_GROUP_SIZE = 16
@@ -85,6 +30,7 @@ export function createIFSPipeline(
   insideShaderCount: number,
   points: TgpuBuffer<WgslArray<typeof Point>> & StorageFlag,
   computeUniforms: TgpuBuffer<WgslStruct<{ seed: Vec4u }>> & UniformFlag,
+  flameFunctions: FlameFunction[],
 ) {
   const { device } = root
 
@@ -94,7 +40,7 @@ export function createIFSPipeline(
   )
 
   const FlameUniforms = struct(
-    Object.fromEntries(flames.map((f, i) => [`i${i}`, f.Uniforms])),
+    Object.fromEntries(flames.map((f, i) => [`flame${i}`, f.Uniforms])),
   )
 
   const bindGroupLayout = tgpu.bindGroupLayout({
@@ -112,7 +58,7 @@ export function createIFSPipeline(
 
   const flameUniformsBuffer = root.createBuffer(FlameUniforms).$usage('uniform')
 
-  flameUniformsBuffer.write(flameUniforms)
+  flameUniformsBuffer.write(extractFlameUniforms(flameFunctions))
 
   const bindGroup = root.createBindGroup(bindGroupLayout, {
     points,
@@ -158,9 +104,9 @@ export function createIFSPipeline(
         ${range(flameFunctions.length)
           .map(
             (i) => /* wgsl */ `
-            probabilitySum += flameUniforms.i${i}.probability;
+            probabilitySum += flameUniforms.flame${i}.probability;
             if (flameIndex < probabilitySum) {
-              point = flame${i}(point, flameUniforms.i${i});
+              point = flame${i}(point, flameUniforms.flame${i});
               continue;
             }
           `,

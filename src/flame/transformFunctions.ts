@@ -1,20 +1,20 @@
 import { random } from '@/shaders/random'
 import tgpu, { TgpuFn } from 'typegpu'
-import { AnyWgslData, f32, struct, Vec2f, vec2f } from 'typegpu/data'
+import { AnyWgslData, f32, Infer, struct, Vec2f, vec2f } from 'typegpu/data'
 import { PI } from './constants'
 import { AffineParams } from './types'
 
-type SimpleFunction = {
+export type SimpleFunction = {
   type: 'simple'
   fn: TgpuFn<[Vec2f], Vec2f>
 }
 
-type DependentFunction = {
+export type DependentFunction = {
   type: 'dependent'
   fn: TgpuFn<[Vec2f, typeof AffineParams], Vec2f>
 }
 
-type ParametricFunction<T extends AnyWgslData> = {
+export type ParametricFunction<T extends AnyWgslData> = {
   type: 'parametric'
   paramShema: T
   fn: TgpuFn<[Vec2f, T], Vec2f>
@@ -139,3 +139,11 @@ export const transformFunctions = {
   randomDisk,
   gaussian,
 }
+
+export type TransformFunctionDescriptor = {
+  [K in TransformFunction]: (typeof transformFunctions)[K] extends ParametricFunction<
+    infer P
+  >
+    ? { type: K; weight: number; params: Infer<P> }
+    : { type: K; weight: number }
+}[TransformFunction]

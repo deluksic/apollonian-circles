@@ -13,7 +13,6 @@
   "license": "MIT",
   "dependencies": {
     "solid-js": "^1.9.3",
-    "typed-binary": "^4.3.2",
     "typegpu": "link:../TypeGPU/packages/typegpu",
     "wgpu-matrix": "^3.3.0"
   },

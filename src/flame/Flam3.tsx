@@ -16,6 +16,7 @@ import { DrawModeFn } from './drawMode'
 import { usePointer } from '@/utils/usePointer'
 import { clamp } from 'typegpu/std'
 import { createBlurPipeline } from './blurPipeline'
+import { FlameFunction } from './flameFunction'
 
 export const MAX_POINT_COUNT = 1e6
 export const MAX_OUTER_ITERS = 15
@@ -30,6 +31,7 @@ type Flam3Props = {
   exposure: number
   maxChroma: number
   enableBlur: boolean
+  flameFunctions: FlameFunction[]
 }
 
 export function Flam3(props: Flam3Props) {
@@ -161,8 +163,15 @@ export function Flam3(props: Flam3Props) {
       props.skipIters,
       points,
       computeUniforms,
+      props.flameFunctions,
     )
-    const runIfs = createIFSPipeline(root, 1, points, computeUniforms)
+    const runIfs = createIFSPipeline(
+      root,
+      1,
+      points,
+      computeUniforms,
+      props.flameFunctions,
+    )
     const renderPoints = createRenderPointsPipeline(root, camera, points)
     const runBlur = createBlurPipeline(
       root,

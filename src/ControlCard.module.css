@@ -1,9 +1,6 @@
 .container {
-  position: absolute;
+  position: relative;
   padding: 0.15rem;
-  top: 1rem;
-  left: 1rem;
-  z-index: 1;
   user-select: none;
 
   &::before {
@@ -17,13 +14,13 @@
 }
 
 .content {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-items: start;
   padding: 1rem;
+  gap: 1rem;
   color: white;
   background-color: #000a;
   border-radius: 1rem;
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 1rem;
-  align-items: center;
-  justify-items: start;
 }

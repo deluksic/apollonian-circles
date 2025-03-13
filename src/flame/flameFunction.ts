@@ -1,13 +1,18 @@
 import { align, f32, struct, v2f, vec2f } from 'typegpu/data'
-import { TransformFunction, transformFunctions } from './transformFunctions'
+import {
+  TransformFunction,
+  TransformFunctionDescriptor,
+  transformFunctions,
+} from './transformFunctions'
 import { AffineParams, Point, transformAffine } from './types'
 import tgpu from 'typegpu'
 
 export type FlameFunction = {
+  probability: number
   preAffine: AffineParams
-  variations: { type: TransformFunction; weight: number }[]
   postAffine: AffineParams
   color: v2f
+  variations: TransformFunctionDescriptor[]
 }
 
 const FlameUniformsBase = struct({
@@ -32,14 +37,14 @@ function variationUniforms(name: TransformFunction) {
   return VariantUniforms
 }
 
-function variationInvocation(name: TransformFunction, i: number) {
+function variationInvocation(name: TransformFunction, j: number) {
   switch (transformFunctions[name].type) {
     case 'simple':
       return `${name}(pre)`
     case 'dependent':
       return `${name}(pre, uniforms.preAffine)`
     case 'parametric':
-      return `${name}(pre, uniforms.j${i}.params)`
+      return `${name}(pre, uniforms.variation${j}.params)`
   }
 }
 
@@ -49,7 +54,7 @@ export function createFlameWgsl({
   const Uniforms = struct({
     ...FlameUniformsBase.propTypes,
     ...Object.fromEntries(
-      variations.map((v, i) => [`j${i}`, variationUniforms(v.type)]),
+      variations.map((v, j) => [`variation${j}`, variationUniforms(v.type)]),
     ),
   })
   const fnImpl = tgpu['~unstable']
@@ -61,8 +66,8 @@ export function createFlameWgsl({
         var p = vec2f(0);
         ${variations
           .map(
-            ({ type }, i) =>
-              /* wgsl */ `p += uniforms.j${i}.weight * ${variationInvocation(type, i)};`,
+            ({ type }, j) =>
+              /* wgsl */ `p += uniforms.variation${j}.weight * ${variationInvocation(type, j)};`,
           )
           .join('\n')}
         p = transformAffine(uniforms.postAffine, p);
@@ -81,4 +86,21 @@ export function createFlameWgsl({
     Uniforms,
     fnImpl,
   }
+}
+
+export function extractFlameUniforms(flames: FlameFunction[]) {
+  return Object.fromEntries(
+    flames.map(({ variations, ...flame }, i) => [
+      `flame${i}`,
+      {
+        ...flame,
+        ...Object.fromEntries(
+          variations.map(({ type, ...variation }, j) => [
+            `variation${j}`,
+            variation,
+          ]),
+        ),
+      },
+    ]),
+  )
 }

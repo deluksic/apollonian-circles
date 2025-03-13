@@ -18,3 +18,15 @@
 .labeled-input {
   display: contents;
 }
+
+.sidebar {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 40%;
+  padding: 1rem;
+  gap: 0.5rem;
+  max-height: 100%;
+  overflow-y: auto;
+}
