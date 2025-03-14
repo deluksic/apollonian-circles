@@ -14,8 +14,9 @@ import { hexToRgbNorm } from './utils/hexToRgb'
 import { lightMode, paintMode } from './flame/drawMode'
 import { Card } from './ControlCard'
 import { FlameFunction } from './flame/flameFunction'
-import { createStore, produce } from 'solid-js/store'
+import { createStore, produce, unwrap } from 'solid-js/store'
 import { Cross } from './icons/cross'
+import { Plus } from './icons/Plus'
 
 const initFlameFunctions: FlameFunction[] = [
   {
@@ -267,6 +268,26 @@ export function App() {
             </Card>
           )}
         </For>
+        <Card class={ui.addFlameCard}>
+          <button
+            class={ui.addFlameButton}
+            onClick={() =>
+              setFlameFunctions(
+                produce((flames) => {
+                  flames.push({
+                    probability: 0.1,
+                    color: vec2f(),
+                    preAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+                    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+                    variations: [{ type: 'linear', weight: 1 }],
+                  })
+                }),
+              )
+            }
+          >
+            <Plus />
+          </button>
+        </Card>
       </div>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
         <AutoCanvas class={ui.canvas} pixelRatio={pixelRatio()}>

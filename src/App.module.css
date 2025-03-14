@@ -30,9 +30,38 @@
   max-height: 100%;
   overflow-y: auto;
   transition: translate 250ms;
+  color: white;
 
   &:not(.show) {
     translate: -100%;
+  }
+}
+
+.add-flame-card.add-flame-card {
+  display: flex;
+  padding: 0;
+  align-items: stretch;
+  flex-direction: column;
+
+  &:hover {
+    background: none;
+  }
+}
+
+.add-flame-button {
+  display: flex;
+  justify-content: center;
+  appearance: none;
+  border: none;
+  background: none;
+  height: 4rem;
+  padding: 1rem;
+  color: currentColor;
+  cursor: pointer;
+  opacity: 0.5;
+
+  &:hover {
+    opacity: 1;
   }
 }
 
@@ -48,10 +77,10 @@
   align-items: center;
   justify-content: center;
   background-color: transparent;
-  color: #444;
+  color: white;
   cursor: pointer;
 
   &:hover {
-    color: #888;
+    color: white;
   }
 }
