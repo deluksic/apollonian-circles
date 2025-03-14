@@ -191,6 +191,10 @@ export function Flam3(props: Flam3Props) {
         exposure: 1,
         maxChroma: 0.2,
       })
+
+      runSkipIfs.update(props.flameFunctions)
+      runIfs.update(props.flameFunctions)
+
       const encoder = device.createCommandEncoder()
       {
         const pass = encoder.beginRenderPass({
@@ -227,13 +231,13 @@ export function Flam3(props: Flam3Props) {
       {
         const pass = encoder.beginComputePass()
         runInitPoints(pass, props.pointCount)
-        runSkipIfs(pass, props.pointCount)
+        runSkipIfs.run(pass, props.pointCount)
         pass.end()
       }
       for (let i = 0; i < props.outerIters; ++i) {
         {
           const pass = encoder.beginComputePass()
-          runIfs(pass, props.pointCount)
+          runIfs.run(pass, props.pointCount)
           pass.end()
         }
         {

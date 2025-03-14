@@ -4,7 +4,6 @@ import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot, UniformFlag } from 'typegpu'
 import {
   arrayOf,
   struct,
-  vec2f,
   Vec4u,
   vec4u,
   WgslArray,
@@ -57,8 +56,6 @@ export function createIFSPipeline(
   })
 
   const flameUniformsBuffer = root.createBuffer(FlameUniforms).$usage('uniform')
-
-  flameUniformsBuffer.write(extractFlameUniforms(flameFunctions))
 
   const bindGroup = root.createBindGroup(bindGroupLayout, {
     points,
@@ -132,13 +129,18 @@ export function createIFSPipeline(
     },
   })
 
-  return (pass: GPUComputePassEncoder, pointCount: number) => {
-    pass.setPipeline(ifsPipeline)
-    pass.setBindGroup(0, root.unwrap(bindGroup))
-    pass.dispatchWorkgroups(
-      ceil(pointCount / (IFS_GROUP_SIZE * IFS_GROUP_SIZE)),
-      IFS_GROUP_SIZE,
-      1,
-    )
+  return {
+    run: (pass: GPUComputePassEncoder, pointCount: number) => {
+      pass.setPipeline(ifsPipeline)
+      pass.setBindGroup(0, root.unwrap(bindGroup))
+      pass.dispatchWorkgroups(
+        ceil(pointCount / (IFS_GROUP_SIZE * IFS_GROUP_SIZE)),
+        IFS_GROUP_SIZE,
+        1,
+      )
+    },
+    update: (flameFunctions: FlameFunction[]) => {
+      flameUniformsBuffer.write(extractFlameUniforms(flameFunctions))
+    },
   }
 }

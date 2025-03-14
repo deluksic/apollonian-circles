@@ -23,4 +23,5 @@
   color: white;
   background-color: #000a;
   border-radius: 1rem;
+  font-variant-numeric: tabular-nums;
 }

@@ -1,7 +1,7 @@
 import ui from './App.module.css'
 import { AutoCanvas } from './lib/AutoCanvas'
 import { Root } from './lib/Root'
-import { createSignal, For } from 'solid-js'
+import { createEffect, createSignal, For, onCleanup } from 'solid-js'
 import { WheelZoomCamera2D } from './lib/WheelZoomCamera2D'
 import {
   Flam3,
@@ -14,11 +14,12 @@ import { hexToRgbNorm } from './utils/hexToRgb'
 import { lightMode, paintMode } from './flame/drawMode'
 import { Card } from './ControlCard'
 import { FlameFunction } from './flame/flameFunction'
-import { createStore } from 'solid-js/store'
+import { createStore, produce } from 'solid-js/store'
+import { Cross } from './icons/cross'
 
 const initFlameFunctions: FlameFunction[] = [
   {
-    probability: 0.5,
+    probability: 0.4,
     preAffine: { a: 0.8, b: 0, c: 0.5, d: 0, e: 0.6, f: 0 },
     postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
     color: vec2f(0.1, 0.25),
@@ -49,6 +50,13 @@ const initFlameFunctions: FlameFunction[] = [
       { type: 'gaussian', weight: 0.05 },
     ],
   },
+  {
+    probability: 0.1,
+    preAffine: { a: 0.6, b: 0.5, c: -0.5, d: 0, e: 0.5, f: -0.5 },
+    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+    color: vec2f(1, 0),
+    variations: [{ type: 'sinusoidal', weight: 1 }],
+  },
 ]
 
 export function App() {
@@ -56,15 +64,29 @@ export function App() {
   const [outerIters, setOuterIters] = createSignal(3)
   const [skipIters, setSkipIters] = createSignal(5)
   const [pointCount, setPointCount] = createSignal(1e5)
-  const [exposure, setExposure] = createSignal(0)
+  const [exposure, setExposure] = createSignal(0.1)
   const [maxChroma, setMaxChroma] = createSignal(0.2)
   const [drawMode, setDrawMode] = createSignal(lightMode)
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
   const [enableBlur, setEnableBlur] = createSignal(true)
   const [flameFunctions, setFlameFunctions] = createStore(initFlameFunctions)
+  const [showSidebar, setShowSidebar] = createSignal(true)
+
+  createEffect(() => {
+    function onKeyDown(ev: KeyboardEvent) {
+      if (ev.code === 'Escape') {
+        setShowSidebar((p) => !p)
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    onCleanup(() => {
+      document.removeEventListener('keydown', onKeyDown)
+    })
+  })
+
   return (
     <div class={ui.fullscreen}>
-      <div class={ui.sidebar}>
+      <div class={ui.sidebar} classList={{ [ui.show]: showSidebar() }}>
         <Card>
           <label class={ui.labeledInput}>
             Resolution
@@ -184,6 +206,18 @@ export function App() {
         <For each={flameFunctions}>
           {(flame, i) => (
             <Card>
+              <button
+                class={ui.deleteFlameButton}
+                onClick={() =>
+                  setFlameFunctions(
+                    produce((flames) => {
+                      flames.splice(i(), 1)
+                    }),
+                  )
+                }
+              >
+                <Cross />
+              </button>
               <label class={ui.labeledInput}>
                 Probability
                 <span>

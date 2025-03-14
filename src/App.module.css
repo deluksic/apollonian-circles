@@ -29,4 +29,29 @@
   gap: 0.5rem;
   max-height: 100%;
   overflow-y: auto;
+  transition: translate 250ms;
+
+  &:not(.show) {
+    translate: -100%;
+  }
+}
+
+.delete-flame-button {
+  border: none;
+  border-radius: 100vh;
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: #444;
+  cursor: pointer;
+
+  &:hover {
+    color: #888;
+  }
 }
