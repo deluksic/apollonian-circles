@@ -69,7 +69,7 @@ export function App() {
   const [maxChroma, setMaxChroma] = createSignal(0.2)
   const [drawMode, setDrawMode] = createSignal(lightMode)
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
-  const [enableBlur, setEnableBlur] = createSignal(true)
+  const [adaptiveFilterEnabled, setAdaptiveFilterEnabled] = createSignal(true)
   const [flameFunctions, setFlameFunctions] = createStore(initFlameFunctions)
   const [showSidebar, setShowSidebar] = createSignal(true)
 
@@ -174,11 +174,11 @@ export function App() {
             </span>
           </label>
           <label class={ui.labeledInput}>
-            Enable blur
+            Enable adaptive filter
             <input
               type="checkbox"
-              checked={enableBlur()}
-              onInput={(ev) => setEnableBlur(ev.target.checked)}
+              checked={adaptiveFilterEnabled()}
+              onInput={(ev) => setAdaptiveFilterEnabled(ev.target.checked)}
             />
           </label>
           <label class={ui.labeledInput}>
@@ -300,7 +300,7 @@ export function App() {
               backgroundColor={backgroundColor()}
               exposure={exposure()}
               maxChroma={maxChroma()}
-              enableBlur={enableBlur()}
+              adaptiveFilterEnabled={adaptiveFilterEnabled()}
               flameFunctions={flameFunctions}
             />
           </WheelZoomCamera2D>

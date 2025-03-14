@@ -30,7 +30,7 @@ type Flam3Props = {
   backgroundColor: v3f
   exposure: number
   maxChroma: number
-  enableBlur: boolean
+  adaptiveFilterEnabled: boolean
   flameFunctions: FlameFunction[]
 }
 
@@ -132,7 +132,7 @@ export function Flam3(props: Flam3Props) {
     return createColorGradingPipeline(
       root,
       colorGradingUniforms,
-      props.enableBlur ? postprocessTexture : accumulationTexture,
+      props.adaptiveFilterEnabled ? postprocessTexture : accumulationTexture,
       context.getConfiguration()?.format ??
         navigator.gpu.getPreferredCanvasFormat(),
       props.drawMode,
@@ -254,7 +254,7 @@ export function Flam3(props: Flam3Props) {
           pass.end()
         }
       }
-      if (props.enableBlur) {
+      if (props.adaptiveFilterEnabled) {
         const pass = encoder.beginComputePass()
         runBlur(pass)
         pass.end()
