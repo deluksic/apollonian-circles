@@ -68,6 +68,7 @@ export function createInitPointsPipeline(
       let theta = random() * 2 * PI;
       point.position = r * vec2f(cos(theta), sin(theta));
       point.seed = randomState;
+      point.color = vec2f(0);
       points[pointIndex] = point;
     }
   `
