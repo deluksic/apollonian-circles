@@ -19,53 +19,11 @@ import { vec2f, vec3f } from 'typegpu/data'
 import { hexToRgbNorm } from './utils/hexToRgb'
 import { lightMode, paintMode } from './flame/drawMode'
 import { Card } from './ControlCard'
-import { FlameFunction } from './flame/flameFunction'
 import { createStore, produce } from 'solid-js/store'
 import { Cross } from './icons/Cross'
 import { Plus } from './icons/Plus'
+import { examples } from './flame/examples'
 import { sum } from './utils/sum'
-
-const initFlameFunctions: FlameFunction[] = [
-  {
-    probability: 0.4,
-    preAffine: { a: 0.8, b: 0, c: 0.5, d: 0, e: 0.6, f: 0 },
-    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-    color: vec2f(0.1, 0.25),
-    variations: [{ type: 'linear', weight: 1 }],
-  },
-  {
-    probability: 0.3,
-    preAffine: { a: 0.7, b: 0.3, c: 0.1, d: 0, e: 0.6, f: 0.5 },
-    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-    color: vec2f(-0.3, 0.1),
-    variations: [
-      { type: 'linear', weight: 0.4 },
-      { type: 'swirl', weight: 0.5 },
-      { type: 'popcorn', weight: 0.1 },
-    ],
-  },
-  {
-    probability: 0.2,
-    preAffine: { a: 0.6, b: 0.5, c: -0.5, d: 0, e: 0.5, f: -0.5 },
-    postAffine: { a: 0, b: -1, c: 0, d: 1, e: 0, f: 0 },
-    color: vec2f(0, -0.3),
-    variations: [
-      {
-        type: 'pie',
-        weight: 0.95,
-        params: { rotation: 0, slices: 5, thickness: 0.5 },
-      },
-      { type: 'gaussian', weight: 0.05 },
-    ],
-  },
-  {
-    probability: 0.1,
-    preAffine: { a: 0.6, b: 0.5, c: -0.5, d: 0, e: 0.5, f: -0.5 },
-    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-    color: vec2f(1, 0),
-    variations: [{ type: 'sinusoidal', weight: 1 }],
-  },
-]
 
 export function App() {
   const [pixelRatio, setPixelRatio] = createSignal(0.25)
@@ -78,7 +36,9 @@ export function App() {
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
   const [showSidebar, setShowSidebar] = createSignal(true)
   const [adaptiveFilterEnabled, setAdaptiveFilterEnabled] = createSignal(true)
-  const [flameFunctions, setFlameFunctions] = createStore(initFlameFunctions)
+  const [flameFunctions, setFlameFunctions] = createStore(
+    structuredClone(examples[0]!),
+  )
   const totalProbability = createMemo(() =>
     sum(flameFunctions.map((f) => f.probability)),
   )
