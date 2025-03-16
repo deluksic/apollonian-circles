@@ -66,9 +66,11 @@ export function createColorGradingPipeline(
     }
 
     fn clampLength(v: vec2f, maxLength: f32) -> vec2f {
-      const eps = 0.0001;
       let l = length(v);
-      return min(l, maxLength) * v / max(eps, l);
+      if (l > maxLength) {
+        return min(l, maxLength) * v / l;
+      }
+      return v;
     }
 
     @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
