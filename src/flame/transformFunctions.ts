@@ -169,7 +169,7 @@ const polar = simpleFn(
     }
 
     let r = sqrt(dot(pos, pos)); 
-    let theta = atan(pos.x / pos.y);
+    let theta = atan2(pos.y, pos.x);
     return vec2f(theta / PI, r - 1);
   }`,
   { PI },
@@ -183,7 +183,7 @@ const handkerchief = simpleFn(
     }
 
     let r = sqrt(dot(pos, pos)); 
-    let theta = atan(pos.x / pos.y);
+    let theta = atan2(pos.y, pos.x);
     return vec2f(r * sin(theta + r), r * cos(theta - r));
   }`,
 )
@@ -196,7 +196,7 @@ const heart = simpleFn(
     }
 
     let r = sqrt(dot(pos, pos)); 
-    let theta = atan(pos.x / pos.y);
+    let theta = atan2(pos.y, pos.x);
     return vec2f(r * sin(theta * r), r * -cos(theta * r));
   }`,
 )
@@ -208,8 +208,8 @@ const disc = simpleFn(
       return vec2f(0.0, 0.0);
     }
 
-    let r = sqrt(dot(pos, pos));
-    let theta = atan(pos.x / pos.y);
+    let r = length(pos);
+    let theta = atan2(pos.y, pos.x);
     let thOverPi = theta / PI;
     return vec2f(thOverPi * sin(PI * r), thOverPi * cos(PI * r));
   }`,
@@ -223,8 +223,8 @@ const spiral = simpleFn(
       return vec2f(0.0, 0.0);
     }
 
-    let r = sqrt(dot(pos, pos));
-    let theta = atan(pos.x / pos.y);
+    let r = length(pos);
+    let theta = atan2(pos.y, pos.x);
     let oneOverR = 1 / r;
     return vec2f(oneOverR * (cos(theta) + sin(r)), oneOverR * (sin(theta) - cos(r)));
   }`,
@@ -238,8 +238,8 @@ const hyperbolic = simpleFn(
       return vec2f(0.0, 0.0);
     }
 
-    let r = sqrt(dot(pos, pos));
-    let theta = atan(pos.x / pos.y);
+    let r = length(pos);
+    let theta = atan2(pos.y, pos.x);
     return vec2f(sin(theta) / r, r * cos(theta));
   }`,
 )
@@ -251,8 +251,8 @@ const diamond = simpleFn(
       return vec2f(0.0, 0.0);
     }
 
-    let r = sqrt(dot(pos, pos));
-    let theta = atan(pos.x / pos.y);
+    let r = length(pos);
+    let theta = atan2(pos.y, pos.x);
     return vec2f(sin(theta) * cos(r), cos(theta) * sin(r));
   }`,
 )
@@ -264,8 +264,8 @@ const exVar = simpleFn(
       return vec2f(0.0, 0.0);
     }
 
-    let r = sqrt(dot(pos, pos));
-    let theta = atan(pos.x / pos.y);
+    let r = length(pos);
+    let theta = atan2(pos.y, pos.x);
     let p0 = sin(theta + r);
     let p1 = cos(theta - r);
     let p03 = p0 * p0 * p0;
@@ -281,13 +281,10 @@ const julia = simpleFn(
       return vec2f(0.0, 0.0);
     }
 
-    let sqrtr = sqrt(sqrt(dot(pos, pos)));
-    let theta = atan(pos.x / pos.y);
+    let sqrtr = sqrt(length(pos));
+    let theta = atan2(pos.y, pos.x);
     let rand = random();
-    let omega = 0;
-    if(rand > 0.5) {
-	omega = PI;
-    }
+    let omega = select(0, PI, random() > 0.5),
     let angle = theta / 2.0 + omega;
 
     return vec2f(sqrtr * cos(angle), sqrtr * sin(angle));

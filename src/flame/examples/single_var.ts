@@ -1,12 +1,19 @@
 import type { FlameFunction } from '../flameFunction'
 
-export const empty: FlameFunction[] = [
+export const single_var: FlameFunction[] = [
   {
-    probability: 0.7,
+    probability: 0.5,
     preAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
     postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-    color: { x: 0.4, y: 0.2 },
-    variations: [{ type: 'diamond', weight: 1 }],
+    color: { x: 0, y: 0 },
+    variations: [{ type: 'linear', weight: 1 }],
+  },
+  {
+    probability: 0.5,
+    preAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+    color: { x: 1, y: 0 },
+    variations: [{ type: 'heart', weight: 1 }],
   },
   {
     probability: 0.2,
@@ -21,12 +28,5 @@ export const empty: FlameFunction[] = [
       },
       { type: 'gaussian', weight: 0.05 },
     ],
-  },
-  {
-    probability: 0.1,
-    preAffine: { a: 0.6, b: 0.5, c: -0.5, d: 0, e: 0.5, f: -0.5 },
-    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-    color: { x: 1, y: 0 },
-    variations: [{ type: 'swirl', weight: 1 }],
   },
 ]

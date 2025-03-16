@@ -1,12 +1,23 @@
 import type { FlameFunction } from '../flameFunction'
 
-export const empty: FlameFunction[] = [
+export const var_test: FlameFunction[] = [
   {
-    probability: 0.7,
-    preAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+    probability: 0.4,
+    preAffine: { a: 0.8, b: 0, c: 0.5, d: 0, e: 0.6, f: 0 },
     postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-    color: { x: 0.4, y: 0.2 },
-    variations: [{ type: 'diamond', weight: 1 }],
+    color: { x: 0.1, y: 0.25 },
+    variations: [{ type: 'linear', weight: 1 }],
+  },
+  {
+    probability: 0.3,
+    preAffine: { a: 0.7, b: 0.3, c: 0.1, d: 0, e: 0.6, f: 0.5 },
+    postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+    color: { x: -0.3, y: 0.1 },
+    variations: [
+      { type: 'linear', weight: 0.4 },
+      { type: 'heart', weight: 0.5 },
+      { type: 'exVar', weight: 0.1 },
+    ],
   },
   {
     probability: 0.2,
@@ -27,6 +38,6 @@ export const empty: FlameFunction[] = [
     preAffine: { a: 0.6, b: 0.5, c: -0.5, d: 0, e: 0.5, f: -0.5 },
     postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
     color: { x: 1, y: 0 },
-    variations: [{ type: 'swirl', weight: 1 }],
+    variations: [{ type: 'diamond', weight: 1 }],
   },
 ]
