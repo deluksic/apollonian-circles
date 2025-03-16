@@ -1,7 +1,13 @@
 import ui from './App.module.css'
 import { AutoCanvas } from './lib/AutoCanvas'
 import { Root } from './lib/Root'
-import { createEffect, createSignal, For, onCleanup } from 'solid-js'
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+} from 'solid-js'
 import { WheelZoomCamera2D } from './lib/WheelZoomCamera2D'
 import {
   Flam3,
@@ -14,9 +20,10 @@ import { hexToRgbNorm } from './utils/hexToRgb'
 import { lightMode, paintMode } from './flame/drawMode'
 import { Card } from './ControlCard'
 import { FlameFunction } from './flame/flameFunction'
-import { createStore, produce, unwrap } from 'solid-js/store'
-import { Cross } from './icons/cross'
+import { createStore, produce } from 'solid-js/store'
+import { Cross } from './icons/Cross'
 import { Plus } from './icons/Plus'
+import { sum } from './utils/sum'
 
 const initFlameFunctions: FlameFunction[] = [
   {
@@ -69,9 +76,12 @@ export function App() {
   const [maxChroma, setMaxChroma] = createSignal(0.2)
   const [drawMode, setDrawMode] = createSignal(lightMode)
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
+  const [showSidebar, setShowSidebar] = createSignal(true)
   const [adaptiveFilterEnabled, setAdaptiveFilterEnabled] = createSignal(true)
   const [flameFunctions, setFlameFunctions] = createStore(initFlameFunctions)
-  const [showSidebar, setShowSidebar] = createSignal(true)
+  const totalProbability = createMemo(() =>
+    sum(flameFunctions.map((f) => f.probability)),
+  )
 
   createEffect(() => {
     function onKeyDown(ev: KeyboardEvent) {
@@ -236,7 +246,7 @@ export function App() {
                       )
                     }
                   />
-                  {(100 * flame.probability).toFixed(1)} %
+                  {((100 * flame.probability) / totalProbability()).toFixed(1)}%
                 </span>
               </label>
               <For each={flame.variations}>

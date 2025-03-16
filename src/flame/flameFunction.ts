@@ -6,6 +6,7 @@ import {
 } from './transformFunctions'
 import { AffineParams, Point, transformAffine } from './types'
 import tgpu from 'typegpu'
+import { sum } from '@/utils/sum'
 
 export type FlameFunction = {
   probability: number
@@ -89,10 +90,12 @@ export function createFlameWgsl({
 }
 
 export function extractFlameUniforms(flames: FlameFunction[]) {
+  const totalProbability = sum(flames.map((f) => f.probability))
   return Object.fromEntries(
-    flames.map(({ variations, ...flame }, i) => [
+    flames.map(({ variations, probability, ...flame }, i) => [
       `flame${i}`,
       {
+        probability: probability / totalProbability,
         ...flame,
         ...Object.fromEntries(
           variations.map(({ type, ...variation }, j) => [
