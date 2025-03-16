@@ -1,6 +1,6 @@
 import { wgsl } from '@/utils/wgsl'
 import { TgpuRoot } from 'typegpu'
-import { outputTextureFormat } from './types'
+import { outputTextureFormat } from './variations/types'
 
 export const FADE_CONSTANT = 0.999
 

@@ -1,10 +1,10 @@
 import { align, f32, struct, vec2f } from 'typegpu/data'
 import {
-  TransformFunction,
-  TransformFunctionDescriptor,
-  transformFunctions,
-} from './transformFunctions'
-import { AffineParams, Point, transformAffine } from './types'
+  TransformVariation,
+  TransformVariationDescriptor,
+  transformVariations,
+} from './variations/index'
+import { AffineParams, Point, transformAffine } from './variations/types'
 import tgpu from 'typegpu'
 import { sum } from '@/utils/sum'
 
@@ -13,7 +13,7 @@ export type FlameFunction = {
   preAffine: AffineParams
   postAffine: AffineParams
   color: { x: number; y: number }
-  variations: TransformFunctionDescriptor[]
+  variations: TransformVariationDescriptor[]
 }
 
 const FlameUniformsBase = struct({
@@ -27,8 +27,8 @@ const VariantUniforms = struct({
   weight: align(16, f32),
 })
 
-function variationUniforms(name: TransformFunction) {
-  const tf = transformFunctions[name]
+function variationUniforms(name: TransformVariation) {
+  const tf = transformVariations[name]
   if (tf.type === 'parametric') {
     return struct({
       ...VariantUniforms.propTypes,
@@ -38,8 +38,8 @@ function variationUniforms(name: TransformFunction) {
   return VariantUniforms
 }
 
-function variationInvocation(name: TransformFunction, j: number) {
-  switch (transformFunctions[name].type) {
+function variationInvocation(name: TransformVariation, j: number) {
+  switch (transformVariations[name].type) {
     case 'simple':
       return `${name}(pre)`
     case 'dependent':
@@ -80,7 +80,7 @@ export function createFlameWgsl({
     .$uses({
       transformAffine,
       ...Object.fromEntries(
-        variations.map((v) => [v.type, transformFunctions[v.type].fn]),
+        variations.map((v) => [v.type, transformVariations[v.type].fn]),
       ),
     })
   return {

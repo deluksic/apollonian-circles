@@ -26,3 +26,7 @@ gitignore
 # System Files
 .DS_Store
 Thumbs.db
+
+docs/assets/*.js
+docs/assets/*.css
+docs/index.html

@@ -37,6 +37,12 @@
   }
 }
 
+.var-input-type {
+  max-width: 4px;
+  width: 70%;
+  border-radius: 8px;
+}
+
 .add-flame-card.add-flame-card {
   display: flex;
   padding: 0;
