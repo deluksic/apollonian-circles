@@ -152,6 +152,98 @@ const pie = parametricFn(
   { random, PI },
 )
 
+const horseshoe = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    let r = sqrt(dot(pos, pos)); 
+    let sqDiff = (pos.x - pos.y) * (pos.x + pos.y);
+    return vec2f(sqDiff / r, (2.0 * pos.x * pos.y) / r);
+  }`,
+)
+
+const polar = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let r = sqrt(dot(pos, pos)); 
+    let theta = atan(pos.x / pos.y);
+    return vec2f(theta / PI, r - 1);
+  }`,
+  { PI },
+)
+
+const handkerchief = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let r = sqrt(dot(pos, pos)); 
+    let theta = atan(pos.x / pos.y);
+    return vec2f(r * sin(theta + r), r * cos(theta - r));
+  }`,
+)
+
+const heart = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let r = sqrt(dot(pos, pos)); 
+    let theta = atan(pos.x / pos.y);
+    return vec2f(r * sin(theta * r), r * -cos(theta * r));
+  }`,
+)
+
+const disc = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let r = sqrt(dot(pos, pos));
+    let theta = atan(pos.x / pos.y);
+    let thOverPi = theta / PI;
+    return vec2f(thOverPi * sin(PI * r), thOverPi * cos(PI * r));
+  }`,
+  { PI },
+)
+
+const spiral = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let r = sqrt(dot(pos, pos));
+    let theta = atan(pos.x / pos.y);
+    let oneOverR = 1 / r;
+    return vec2f(oneOverR * (cos(theta) + sin(r)), oneOverR * (sin(theta) - cos(r)));
+  }`,
+  { PI },
+)
+
+const hyperbolic = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let r = sqrt(dot(pos, pos));
+    let theta = atan(pos.x / pos.y);
+    return vec2f(sin(theta) / r, r * cos(theta));
+  }`,
+)
+
 export type TransformFunction = keyof typeof transformFunctions
 export const transformFunctions = {
   linear,
@@ -163,12 +255,19 @@ export const transformFunctions = {
   randomDisk,
   gaussian,
   grid,
+  horseshoe,
+  polar,
+  handkerchief,
+  heart,
+  disc,
+  spiral,
+  hyperbolic,
 }
 
 export type TransformFunctionDescriptor = {
   [K in TransformFunction]: (typeof transformFunctions)[K] extends ParametricFunction<
     infer P
   >
-    ? { type: K; weight: number; params: Infer<P> }
-    : { type: K; weight: number }
+  ? { type: K; weight: number; params: Infer<P> }
+  : { type: K; weight: number }
 }[TransformFunction]
