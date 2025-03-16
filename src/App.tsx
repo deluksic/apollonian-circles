@@ -18,17 +18,18 @@ import {
 import { vec2f, vec3f } from 'typegpu/data'
 import { hexToRgbNorm } from './utils/hexToRgb'
 import { lightMode, paintMode } from './flame/drawMode'
-import { Card } from './ControlCard'
+import { Card } from './components/ControlCard/ControlCard'
 import { createStore, produce } from 'solid-js/store'
 import { Cross } from './icons/Cross'
 import { Plus } from './icons/Plus'
-import { examples } from './flame/examples'
+import { ExampleID, examples } from './flame/examples'
+import { Modal, useRequestModal } from './components/Modal/Modal'
 import { sum } from './utils/sum'
 
-export function App() {
+function App() {
   const [pixelRatio, setPixelRatio] = createSignal(0.25)
-  const [outerIters, setOuterIters] = createSignal(3)
-  const [skipIters, setSkipIters] = createSignal(5)
+  const [outerIters, setOuterIters] = createSignal(1)
+  const [skipIters, setSkipIters] = createSignal(15)
   const [pointCount, setPointCount] = createSignal(1e5)
   const [exposure, setExposure] = createSignal(0.1)
   const [maxChroma, setMaxChroma] = createSignal(0.2)
@@ -42,6 +43,7 @@ export function App() {
   const totalProbability = createMemo(() =>
     sum(flameFunctions.map((f) => f.probability)),
   )
+  const requestModal = useRequestModal()
 
   createEffect(() => {
     function onKeyDown(ev: KeyboardEvent) {
@@ -173,6 +175,47 @@ export function App() {
               <option value="paint">Paint</option>
             </select>
           </label>
+          <button
+            onClick={async () => {
+              const [selectedExampleId, setSelectedExampleId] =
+                createSignal<ExampleID>('example1')
+              const result = await requestModal({
+                title: 'Load Example Flame',
+                message: () => (
+                  <>
+                    <p>You will lose any unsaved changes.</p>
+                    <select
+                      value={selectedExampleId()}
+                      onChange={(ev) =>
+                        setSelectedExampleId(ev.target.value as ExampleID)
+                      }
+                    >
+                      <For each={Object.keys(examples) as ExampleID[]}>
+                        {(exampleId) => (
+                          <option value={exampleId}>{exampleId}</option>
+                        )}
+                      </For>
+                    </select>
+                  </>
+                ),
+                options: {
+                  cancel: (props) => (
+                    <button onClick={props.onClick}>Cancel</button>
+                  ),
+                  load: (props) => (
+                    <button onClick={props.onClick}>Load</button>
+                  ),
+                },
+              })
+              if (result === 'cancel') {
+                return
+              }
+              // structuredClone required in order to not modify the original, as store in solidjs does
+              setFlameFunctions(structuredClone(examples[selectedExampleId()]))
+            }}
+          >
+            Load Example
+          </button>
         </Card>
         <For each={flameFunctions}>
           {(flame, i) => (
@@ -277,5 +320,13 @@ export function App() {
         </AutoCanvas>
       </Root>
     </div>
+  )
+}
+
+export function Wrappers() {
+  return (
+    <Modal>
+      <App />
+    </Modal>
   )
 }

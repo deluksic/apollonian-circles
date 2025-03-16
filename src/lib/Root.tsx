@@ -1,5 +1,5 @@
 import { createResource, onCleanup, ParentProps, Show } from 'solid-js'
-import { tgpu } from 'typegpu'
+import { tgpu, TgpuRoot } from 'typegpu'
 import { RootContextProvider } from './RootContext'
 
 type RootProps = {
@@ -10,6 +10,8 @@ export function Root(props: ParentProps<RootProps>) {
   const [webgpu] = createResource(
     () => ({ adapterOptions: props.adapterOptions }),
     async ({ adapterOptions }) => {
+      let root: TgpuRoot
+      let device: GPUDevice
       onCleanup(() => {
         root?.destroy()
         device?.destroy()
@@ -21,7 +23,7 @@ export function Root(props: ParentProps<RootProps>) {
         )
       }
       console.info(`Using ${adapter.info.vendor} adapter.`)
-      const device = await adapter?.requestDevice({
+      device = await adapter?.requestDevice({
         requiredFeatures: ['float32-blendable'],
       })
       if (!device) {
@@ -29,7 +31,7 @@ export function Root(props: ParentProps<RootProps>) {
           `Failed to get GPUDevice, make sure to use a browser with WebGPU support.`,
         )
       }
-      const root = tgpu.initFromDevice({ device })
+      root = tgpu.initFromDevice({ device })
       return { adapter, device, root }
     },
   )

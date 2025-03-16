@@ -18,7 +18,7 @@ import { clamp } from 'typegpu/std'
 import { createBlurPipeline } from './blurPipeline'
 import { FlameFunction } from './flameFunction'
 
-export const MAX_POINT_COUNT = 1e6
+export const MAX_POINT_COUNT = 4e6
 export const MAX_OUTER_ITERS = 15
 export const MAX_INNER_ITERS = 15
 

@@ -1,4 +1,4 @@
-import { align, f32, struct, v2f, vec2f } from 'typegpu/data'
+import { align, f32, struct, vec2f } from 'typegpu/data'
 import {
   TransformFunction,
   TransformFunctionDescriptor,
@@ -12,7 +12,7 @@ export type FlameFunction = {
   probability: number
   preAffine: AffineParams
   postAffine: AffineParams
-  color: v2f
+  color: { x: number; y: number }
   variations: TransformFunctionDescriptor[]
 }
 
