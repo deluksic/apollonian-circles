@@ -34,10 +34,10 @@ export function App() {
   const [maxChroma, setMaxChroma] = createSignal(0.2)
   const [drawMode, setDrawMode] = createSignal(lightMode)
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
-  const [showSidebar, setShowSidebar] = createSignal(true)
   const [adaptiveFilterEnabled, setAdaptiveFilterEnabled] = createSignal(true)
+  const [showSidebar, setShowSidebar] = createSignal(true)
   const [flameFunctions, setFlameFunctions] = createStore(
-    structuredClone(examples[0]!),
+    structuredClone(examples.example1),
   )
   const totalProbability = createMemo(() =>
     sum(flameFunctions.map((f) => f.probability)),
