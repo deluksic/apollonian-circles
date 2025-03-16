@@ -244,6 +244,57 @@ const hyperbolic = simpleFn(
   }`,
 )
 
+const diamond = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let r = sqrt(dot(pos, pos));
+    let theta = atan(pos.x / pos.y);
+    return vec2f(sin(theta) * cos(r), cos(theta) * sin(r));
+  }`,
+)
+
+const exVar = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let r = sqrt(dot(pos, pos));
+    let theta = atan(pos.x / pos.y);
+    let p0 = sin(theta + r);
+    let p1 = cos(theta - r);
+    let p03 = p0 * p0 * p0;
+    let p13 = p1 * p1 * p1;
+    return vec2f(r * (p03 + p13), r * (p03 - p13));
+  }`,
+)
+
+const julia = simpleFn(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    if(abs(pos.y) < 1e-6) {
+      return vec2f(0.0, 0.0);
+    }
+
+    let sqrtr = sqrt(sqrt(dot(pos, pos)));
+    let theta = atan(pos.x / pos.y);
+    let rand = random();
+    let omega = 0;
+    if(rand > 0.5) {
+	omega = PI;
+    }
+    let angle = theta / 2.0 + omega;
+
+    return vec2f(sqrtr * cos(angle), sqrtr * sin(angle));
+  }`,
+  {random, PI},
+)
+
 export type TransformFunction = keyof typeof transformFunctions
 export const transformFunctions = {
   linear,
@@ -262,6 +313,9 @@ export const transformFunctions = {
   disc,
   spiral,
   hyperbolic,
+  diamond,
+  exVar,
+  julia,
 }
 
 export type TransformFunctionDescriptor = {
