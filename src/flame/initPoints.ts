@@ -7,9 +7,10 @@ import tgpu, {
   TgpuRoot,
 } from 'typegpu'
 import { arrayOf, WgslArray } from 'typegpu/data'
-import { Point } from './types'
+import { Point } from './variations/types'
 import { ComputeUniforms } from './ifsPipeline'
 import { PI } from './constants'
+import { transformVariations } from '@/flame/variations'
 
 const { ceil } = Math
 

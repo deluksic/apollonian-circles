@@ -9,7 +9,7 @@ import {
   WgslArray,
   WgslStruct,
 } from 'typegpu/data'
-import { AffineParams, Point, transformAffine } from './types'
+import { AffineParams, Point, transformAffine } from './variations/types'
 import {
   createFlameWgsl,
   extractFlameUniforms,

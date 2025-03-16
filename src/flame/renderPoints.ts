@@ -2,7 +2,7 @@ import { CameraContext } from '@/lib/CameraContext'
 import { wgsl } from '@/utils/wgsl'
 import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot } from 'typegpu'
 import { arrayOf, WgslArray } from 'typegpu/data'
-import { Point, outputTextureFormat } from './types'
+import { Point, outputTextureFormat } from './variations/types'
 import { random, setSeed } from '@/shaders/random'
 
 const bindGroupLayout = tgpu

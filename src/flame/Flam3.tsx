@@ -6,7 +6,7 @@ import {
 import { ComputeUniforms, createIFSPipeline } from './ifsPipeline'
 import { createInitPointsPipeline } from './initPoints'
 import { createRenderPointsPipeline } from './renderPoints'
-import { Point, outputTextureFormat } from './types'
+import { Point, outputTextureFormat } from './variations/types'
 import { useCamera } from '../lib/CameraContext'
 import { useCanvas } from '../lib/CanvasContext'
 import { useRootContext } from '../lib/RootContext'
