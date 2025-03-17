@@ -10,6 +10,7 @@ import { arrayOf, WgslArray } from 'typegpu/data'
 import { Point } from './types'
 import { ComputeUniforms } from './ifsPipeline'
 import { PI } from './constants'
+import { transformFunctions } from '@/flame/transformFunctions'
 
 const { ceil } = Math
 
@@ -47,6 +48,8 @@ export function createInitPointsPipeline(
       random,
       hash,
       PI,
+      grid:transformFunctions.grid.fn, 
+      GridParams:transformFunctions.grid.paramShema
     }}
 
     @compute @workgroup_size(${INIT_GROUP_SIZE}, 1, 1) fn computeSomething(
@@ -64,9 +67,7 @@ export function createInitPointsPipeline(
       setSeed((computeUniforms.seed ^ point.seed) + hash(1234 * pointIndex + point.seed.x));
 
       // uniform disk
-      let r = sqrt(random());
-      let theta = random() * 2 * PI;
-      point.position = r * vec2f(cos(theta), sin(theta));
+      point.position = grid(vec2f(), GridParams(10, 1, 0.001));
       point.seed = randomState;
       point.color = vec2f(0);
       points[pointIndex] = point;

@@ -27,10 +27,10 @@ import { Modal, useRequestModal } from './components/Modal/Modal'
 import { sum } from './utils/sum'
 
 function App() {
-  const [pixelRatio, setPixelRatio] = createSignal(0.25)
+  const [pixelRatio, setPixelRatio] = createSignal(1.0)
   const [outerIters, setOuterIters] = createSignal(1)
-  const [skipIters, setSkipIters] = createSignal(15)
-  const [pointCount, setPointCount] = createSignal(1e5)
+  const [skipIters, setSkipIters] = createSignal(0)
+  const [pointCount, setPointCount] = createSignal(1e6)
   const [exposure, setExposure] = createSignal(0.1)
   const [maxChroma, setMaxChroma] = createSignal(0.2)
   const [drawMode, setDrawMode] = createSignal(lightMode)
@@ -38,7 +38,7 @@ function App() {
   const [adaptiveFilterEnabled, setAdaptiveFilterEnabled] = createSignal(true)
   const [showSidebar, setShowSidebar] = createSignal(true)
   const [flameFunctions, setFlameFunctions] = createStore(
-    structuredClone(examples.example1),
+    structuredClone(examples.empty),
   )
   const totalProbability = createMemo(() =>
     sum(flameFunctions.map((f) => f.probability)),
@@ -178,7 +178,7 @@ function App() {
           <button
             onClick={async () => {
               const [selectedExampleId, setSelectedExampleId] =
-                createSignal<ExampleID>('example1')
+                createSignal<ExampleID>('empty')
               const result = await requestModal({
                 title: 'Load Example Flame',
                 message: () => (
@@ -255,7 +255,23 @@ function App() {
               <For each={flame.variations}>
                 {(variation, j) => (
                   <label class={ui.labeledInput}>
-                    Weight {variation.type}
+                    <span> Weight
+                      <input
+                        class="var-input-type"
+                        type="text"
+                        width="40px"
+                        value={variation.type}
+                        onInput={(ev) =>
+                          setFlameFunctions(
+                            i(),
+                            'variations',
+                            j(),
+                            'type',
+                            ev.target.value,
+                          )
+                        }
+                      />
+                    </span>
                     <span>
                       <input
                         type="range"
@@ -292,7 +308,7 @@ function App() {
                     color: vec2f(),
                     preAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
                     postAffine: { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
-                    variations: [{ type: 'linear', weight: 1 }],
+                    variations: [{ type: 'heart', weight: 1 }],
                   })
                 }),
               )
