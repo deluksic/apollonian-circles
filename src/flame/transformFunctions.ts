@@ -123,14 +123,6 @@ const swirl = simpleFn(/* wgsl */ `
     );
   }`)
 
-const popcorn = dependentFn(/* wgsl */ `
-  (pos: vec2f, T: AffineParams) -> vec2f {
-    return vec2f(
-      pos.x + T.c * sin(tan(3 * pos.y)),
-      pos.y + T.f * sin(tan(3 * pos.x)),
-    );
-  }`)
-
 export const PieParams = struct({
   slices: f32,
   rotation: f32,
@@ -138,7 +130,7 @@ export const PieParams = struct({
 })
 const pie = parametricFn(
   PieParams,
-  /* wgsl */ `(pos: vec2f, P: PieParams) -> vec2f {
+  /* wgsl */ `(_pos: vec2f, P: PieParams) -> vec2f {
     let p1 = P.slices;
     let p2 = P.rotation;
     let p3 = P.thickness;
@@ -152,42 +144,38 @@ const pie = parametricFn(
   { random, PI },
 )
 
-const horseshoe = simpleFn(
-  /* wgsl */ `
+const horseshoe = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
-    let r = sqrt(dot(pos, pos)); 
-    let sqDiff = (pos.x - pos.y) * (pos.x + pos.y);
-    return vec2f(sqDiff / r, (2.0 * pos.x * pos.y) / r);
-  }`,
-)
+    let r = length(pos); 
+    return vec2f(
+      (pos.x - pos.y) * (pos.x + pos.y),
+      2 * pos.x * pos.y
+    ) / r;
+  }`)
 
 const polar = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    let r = sqrt(dot(pos, pos)); 
+    let r = length(pos); 
     let theta = atan2(pos.y, pos.x);
     return vec2f(theta / PI, r - 1);
   }`,
   { PI },
 )
 
-const handkerchief = simpleFn(
-  /* wgsl */ `
+const handkerchief = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
-    let r = sqrt(dot(pos, pos)); 
+    let r = length(pos); 
     let theta = atan2(pos.y, pos.x);
-    return vec2f(r * sin(theta + r), r * cos(theta - r));
-  }`,
-)
+    return r * vec2f(sin(theta + r), cos(theta - r));
+  }`)
 
-const heart = simpleFn(
-  /* wgsl */ `
+const heart = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
-    let r = sqrt(dot(pos, pos)); 
+    let r = length(pos); 
     let theta = atan2(pos.y, pos.x);
-    return vec2f(r * sin(theta * r), r * -cos(theta * r));
-  }`,
-)
+    return r * vec2f(sin(theta * r), -cos(theta * r));
+  }`)
 
 const disc = simpleFn(
   /* wgsl */ `
@@ -195,7 +183,7 @@ const disc = simpleFn(
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     let thOverPi = theta / PI;
-    return vec2f(thOverPi * sin(PI * r), thOverPi * cos(PI * r));
+    return thOverPi * vec2f(sin(PI * r), cos(PI * r));
   }`,
   { PI },
 )
@@ -206,31 +194,29 @@ const spiral = simpleFn(
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     let oneOverR = 1 / r;
-    return vec2f(oneOverR * (cos(theta) + sin(r)), oneOverR * (sin(theta) - cos(r)));
+    return oneOverR * vec2f(
+      (cos(theta) + sin(r)),
+      (sin(theta) - cos(r))
+    );
   }`,
   { PI },
 )
 
-const hyperbolic = simpleFn(
-  /* wgsl */ `
+const hyperbolic = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     return vec2f(sin(theta) / r, r * cos(theta));
-  }`,
-)
+  }`)
 
-const diamond = simpleFn(
-  /* wgsl */ `
+const diamond = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     return vec2f(sin(theta) * cos(r), cos(theta) * sin(r));
-  }`,
-)
+  }`)
 
-const exVar = simpleFn(
-  /* wgsl */ `
+const exVar = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
@@ -238,9 +224,8 @@ const exVar = simpleFn(
     let p1 = cos(theta - r);
     let p03 = p0 * p0 * p0;
     let p13 = p1 * p1 * p1;
-    return vec2f(r * (p03 + p13), r * (p03 - p13));
-  }`,
-)
+    return r * vec2f((p03 + p13), (p03 - p13));
+  }`)
 
 const julia = simpleFn(
   /* wgsl */ `
@@ -250,23 +235,19 @@ const julia = simpleFn(
     let rand = random();
     let omega = select(0, PI, random() > 0.5);
     let angle = theta / 2.0 + omega;
-
-    return vec2f(sqrtr * cos(angle), sqrtr * sin(angle));
+    return sqrtr * vec2f(cos(angle), sin(angle));
   }`,
   { random, PI },
 )
 
-const bent = simpleFn(
-  /* wgsl */ `
+const bent = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
     let fx = select(pos.x, 2.0 * pos.x, pos.x < 0);
     let fy = select(pos.y, pos.y / 2.0, pos.y < 0);
     return vec2f(fx, fy);
-  }`,
-)
+  }`)
 
-const waves = dependentFn(
-  /* wgsl */ `
+const waves = dependentFn(/* wgsl */ `
   (pos: vec2f, T: AffineParams) -> vec2f {
     let xSinArg = pos.y / (T.c * T.c); 
     let ySinArg = pos.x / (T.f * T.f); 
@@ -274,67 +255,69 @@ const waves = dependentFn(
       pos.x + T.b * sin(xSinArg),
       pos.y + T.e * sin(ySinArg),
     );
-  }`,
-)
+  }`)
 
-const fisheye = simpleFn(
-  /* wgsl */ `
+const fisheye = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
     let r = length(pos);
-    let factor = 2.0 / (r + 1); 
-    return vec2f(factor * pos.y, factor * pos.x);
-  }`,
-)
+    let factor = 2 / (r + 1); 
+    return factor * pos.yx;
+  }`)
 
-const eyefish = simpleFn(
-  /* wgsl */ `
+const eyefish = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
     let r = length(pos);
-    let factor = 2.0 / (r + 1); 
-    return vec2f(factor * pos.x, factor * pos.y);
-  }`,
-)
+    let factor = 2 / (r + 1); 
+    return factor * pos;
+  }`)
+
+const popcorn = dependentFn(/* wgsl */ `
+  (pos: vec2f, T: AffineParams) -> vec2f {
+    return pos + vec2f(
+      T.c * sin(tan(3 * pos.y)),
+      T.f * sin(tan(3 * pos.x)),
+    );
+  }`)
 
 const exponential = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    let factor = exp(pos.x - 1.0); 
-    return vec2f(factor * cos(PI * pos.y), factor * sin(PI * pos.y));
+    let factor = exp(pos.x - 1);
+    let piY = PI * pos.y;
+    return factor * vec2f(cos(piY), sin(piY));
   }`,
   { PI },
 )
 
-const power = simpleFn(
-  /* wgsl */ `
+const power = simpleFn(/* wgsl */ `
   (pos: vec2f) -> vec2f {
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
-    let exponent = sin(theta);
-    let factor = pow(r, exponent);
-    return vec2f(factor * cos(theta), factor * sin(theta));
-  }`,
-)
+    let sinTheta = sin(theta);
+    let factor = pow(r, sinTheta);
+    return factor * vec2f(cos(theta), sinTheta);
+  }`)
 
 const cosine = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    let x = cos(PI * pos.x) * cosh(pos.y);
-    let y = -sin(PI * pos.x) * sinh(pos.y);
-    return vec2f(x, y);
+    let piX = PI * pos.x;
+    return vec2f(
+      cos(piX) * cosh(pos.y),
+      -sin(piX) * sinh(pos.y)
+    );
   }`,
   { PI },
 )
 
-const rings = dependentFn(
-  /* wgsl */ `
+const rings = dependentFn(/* wgsl */ `
   (pos: vec2f, T: AffineParams) -> vec2f {
-    let mc2 = T.c * T.c;
+    let c2 = T.c * T.c;
     let r = length(pos); 
     let theta = atan2(pos.y, pos.x);
-    let factor = (r + mc2) % (2.0 * mc2) - mc2 + r * (1.0 - mc2);
-    return vec2f(factor * cos(theta), factor * sin(theta));
-  }`,
-)
+    let factor = (r + c2) % (2 * c2) - c2 + r * (1 - c2);
+    return factor * vec2f(cos(theta), sin(theta));
+  }`)
 
 const fan = dependentFn(
   /* wgsl */ `
@@ -344,15 +327,15 @@ const fan = dependentFn(
     let theta = atan2(pos.y, pos.x);
 
     let thalf = t / 2;
+    // jel tocno ovo? ili obratno?
     let trueAngle = theta - thalf;
     let falseAngle = theta + thalf;
     let modCond = (theta + T.f) % t;
     let angle = select(falseAngle, trueAngle, modCond > thalf);
-    return vec2f(r * cos(angle), r * sin(angle));
+    return r * vec2f(cos(angle), sin(angle));
   }`,
   { PI },
 )
-
 
 export type TransformFunction = keyof typeof transformFunctions
 export const transformFunctions = {
@@ -390,6 +373,6 @@ export type TransformFunctionDescriptor = {
   [K in TransformFunction]: (typeof transformFunctions)[K] extends ParametricFunction<
     infer P
   >
-  ? { type: K; weight: number; params: Infer<P> }
-  : { type: K; weight: number }
+    ? { type: K; weight: number; params: Infer<P> }
+    : { type: K; weight: number }
 }[TransformFunction]
