@@ -57,6 +57,30 @@ const linear = simpleFn(/* wgsl */ `
     return pos;
   }`)
 
+export const GridParams = struct({
+  divisions: f32,
+  size: f32,
+  jitterNearIntersectionsDistance: f32,
+})
+const grid = parametricFn(
+  GridParams,
+  /* wgsl */ `(_pos: vec2f, P: GridParams) -> vec2f {
+    let D = P.jitterNearIntersectionsDistance;
+    let divs = select(P.divisions, 1, random() > 0.8);
+    let pos = P.size * (2 * vec2f(random(), random()) - 1);
+    let jitter = 2 * D * (2 * vec2f(random(), random()) - 1);
+    let rounded = round(divs * pos) / divs;
+    let diff = abs(pos - rounded);
+    let jittered = select(pos, pos + jitter, diff < vec2f(D));
+    return select(
+      vec2f(rounded.x, jittered.y),
+      vec2f(jittered.x, rounded.y),
+      random() > 0.5
+    );
+  }`,
+  { random },
+)
+
 const randomDisk = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
@@ -138,6 +162,7 @@ export const transformFunctions = {
   pie,
   randomDisk,
   gaussian,
+  grid,
 }
 
 export type TransformFunctionDescriptor = {
