@@ -3,6 +3,7 @@ import { wgsl } from '@/utils/wgsl'
 import tgpu, { StorageFlag, TgpuBuffer, TgpuRoot } from 'typegpu'
 import { arrayOf, WgslArray } from 'typegpu/data'
 import { Point, outputTextureFormat } from './types'
+import { random, setSeed } from '@/shaders/random'
 
 const bindGroupLayout = tgpu
   .bindGroupLayout({
@@ -28,6 +29,9 @@ export function createRenderPointsPipeline(
       ...camera.BindGroupLayout.bound,
       ...bindGroupLayout.bound,
       worldToClip: camera.wgsl.worldToClip,
+      clipToPixels: camera.wgsl.clipToPixels,
+      random,
+      setSeed,
     }}
 
     struct VertexOutput {
@@ -37,8 +41,15 @@ export function createRenderPointsPipeline(
 
     @vertex fn vs(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
       let point = points[vertex_index];
+      setSeed(point.seed);
+
+      // antialiasing jitter
+      let pxScale = 1 / clipToPixels(vec2f(1, 1));
+      let proj = worldToClip(point.position);
+      let jittered = proj + pxScale * (2 * vec2f(random(), random()) - 1);
+
       return VertexOutput(
-        vec4f(worldToClip(point.position), 0, 1),
+        vec4f(jittered, 0, 1),
         point.color
       );
     }
