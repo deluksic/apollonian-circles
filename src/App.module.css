@@ -37,6 +37,12 @@
   }
 }
 
+.var-input-type {
+  max-width: 4px; /* Set maximum width */
+  width: 70%; /* Makes it responsive within its parent */
+  border-radius: 8px; /* Optional: Rounds the corners */
+}
+
 .add-flame-card.add-flame-card {
   display: flex;
   padding: 0;

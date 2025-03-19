@@ -164,10 +164,6 @@ const horseshoe = simpleFn(
 const polar = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let r = sqrt(dot(pos, pos)); 
     let theta = atan2(pos.y, pos.x);
     return vec2f(theta / PI, r - 1);
@@ -178,10 +174,6 @@ const polar = simpleFn(
 const handkerchief = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let r = sqrt(dot(pos, pos)); 
     let theta = atan2(pos.y, pos.x);
     return vec2f(r * sin(theta + r), r * cos(theta - r));
@@ -191,10 +183,6 @@ const handkerchief = simpleFn(
 const heart = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let r = sqrt(dot(pos, pos)); 
     let theta = atan2(pos.y, pos.x);
     return vec2f(r * sin(theta * r), r * -cos(theta * r));
@@ -204,10 +192,6 @@ const heart = simpleFn(
 const disc = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     let thOverPi = theta / PI;
@@ -219,10 +203,6 @@ const disc = simpleFn(
 const spiral = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     let oneOverR = 1 / r;
@@ -234,10 +214,6 @@ const spiral = simpleFn(
 const hyperbolic = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     return vec2f(sin(theta) / r, r * cos(theta));
@@ -247,10 +223,6 @@ const hyperbolic = simpleFn(
 const diamond = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     return vec2f(sin(theta) * cos(r), cos(theta) * sin(r));
@@ -260,10 +232,6 @@ const diamond = simpleFn(
 const exVar = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let r = length(pos);
     let theta = atan2(pos.y, pos.x);
     let p0 = sin(theta + r);
@@ -277,10 +245,6 @@ const exVar = simpleFn(
 const julia = simpleFn(
   /* wgsl */ `
   (pos: vec2f) -> vec2f {
-    if(abs(pos.y) < 1e-6) {
-      return vec2f(0.0, 0.0);
-    }
-
     let sqrtr = sqrt(length(pos));
     let theta = atan2(pos.y, pos.x);
     let rand = random();
