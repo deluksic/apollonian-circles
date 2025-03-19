@@ -48,8 +48,8 @@ export function createInitPointsPipeline(
       random,
       hash,
       PI,
-      grid:transformFunctions.grid.fn, 
-      GridParams:transformFunctions.grid.paramShema
+      grid: transformFunctions.grid.fn,
+      GridParams: transformFunctions.grid.paramShema,
     }}
 
     @compute @workgroup_size(${INIT_GROUP_SIZE}, 1, 1) fn computeSomething(
@@ -69,7 +69,7 @@ export function createInitPointsPipeline(
       // uniform disk
       point.position = grid(vec2f(), GridParams(10, 1, 0.001));
       point.seed = randomState;
-      point.color = vec2f(0);
+      point.color = point.position;
       points[pointIndex] = point;
     }
   `
