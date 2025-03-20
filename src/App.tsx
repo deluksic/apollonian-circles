@@ -27,6 +27,7 @@ import { Modal, useRequestModal } from './components/Modal/Modal'
 import { sum } from './utils/sum'
 import { isVariationType } from '@/flame/variations'
 import { FlameColorEditor } from './components/FlameColorEditor/FlameColorEditor'
+import { AffineEditor } from './components/AffineEditor/AffineEditor'
 
 function App() {
   const [pixelRatio, setPixelRatio] = createSignal(1.0)
@@ -62,6 +63,10 @@ function App() {
   return (
     <div class={ui.fullscreen}>
       <div class={ui.sidebar} classList={{ [ui.show]: showSidebar() }}>
+        <AffineEditor
+          flameFunctions={flameFunctions}
+          setFlameFunctions={setFlameFunctions}
+        />
         <FlameColorEditor
           flameFunctions={flameFunctions}
           setFlameFunctions={setFlameFunctions}

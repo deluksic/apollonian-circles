@@ -92,10 +92,11 @@ export function createFlameWgsl({
 export function extractFlameUniforms(flames: FlameFunction[]) {
   const totalProbability = sum(flames.map((f) => f.probability))
   return Object.fromEntries(
-    flames.map(({ variations, probability, ...flame }, i) => [
+    flames.map(({ variations, probability, color, ...flame }, i) => [
       `flame${i}`,
       {
         probability: probability / totalProbability,
+        color: vec2f(color.x, color.y),
         ...flame,
         ...Object.fromEntries(
           variations.map(({ type, ...variation }, j) => [

@@ -1,7 +1,7 @@
 import { AutoCanvas } from '@/lib/AutoCanvas'
 import { Root } from '@/lib/Root'
 import { WheelZoomCamera2D } from '@/lib/WheelZoomCamera2D'
-import ui from './FlameColorEditor.module.css'
+import ui from './AffineEditor.module.css'
 import { useCamera } from '@/lib/CameraContext'
 import { useRootContext } from '@/lib/RootContext'
 import { createEffect, createMemo, createSignal, For } from 'solid-js'
@@ -15,10 +15,9 @@ import { createDragHandler } from '@/utils/createDragHandler'
 import { eventToClip } from '@/utils/eventToClip'
 import { vec2 } from 'wgpu-matrix'
 import { FlameFunction } from '@/flame/flameFunction'
-import { SetStoreFunction } from 'solid-js/store'
-import { maxLength2 } from '@/utils/clampLength'
+import { produce, SetStoreFunction } from 'solid-js/store'
 
-function Gradient() {
+function Grid() {
   const camera = useCamera()
   const { device, root } = useRootContext()
   const { context } = useCanvas()
@@ -51,25 +50,32 @@ function Gradient() {
         );
       }
 
-      fn clampLength(v: vec2f, maxLength: f32) -> vec2f {
-        const eps = 0.0001;
-        let l = length(v);
-        return min(l, maxLength) * v / max(eps, l);
+      fn triangle(x: f32) -> f32 {
+        return abs(fract(x - 0.5) - 0.5);
+      }
+
+      fn lines(x: f32, pxWidth: f32) -> f32 {
+        return saturate(2 * (2 * pxWidth - x) / pxWidth);
       }
 
       @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
         let worldPos = clipToWorld(in.clip);
-        let pxWidth = fwidth(worldPos.y);
-        let r = length(worldPos);
-        let gridCircle = abs(sin(30 * PI * clamp(r, 0, 0.2 + 0.01)));
-        let gridCircleW = fwidth(gridCircle);
-        let gridCircleLineAA = saturate(2 * (150 * pxWidth - gridCircle) / gridCircleW);
-        let gridRadial = abs(sin(6 * atan2(worldPos.y, worldPos.x)));
-        let gridRadialW = fwidth(gridRadial);
-        let gridRadialLineAA = saturate(2 * (min(0.5, 10 * pxWidth / r) - gridRadial) / gridRadialW);
-        let fadeToCenter = smoothstep(0.005, 0.05, r);
-        let gridAA = max(gridCircleLineAA, gridRadialLineAA * fadeToCenter);
-        return vec4f(gamutClipPreserveChroma(vec3f(0.7 - 0.05 * gridAA, clampLength(worldPos, 0.2))), 1);
+        let pxWidth = dpdx(worldPos.x);
+
+        let minorV = lines(triangle(10 * worldPos.x), 10 * pxWidth);
+        let minorH = lines(triangle(10 * worldPos.y), 10 * pxWidth);
+        let minor = max(minorH, minorV);
+
+        let majorV = lines(triangle(worldPos.x), pxWidth);
+        let majorH = lines(triangle(worldPos.y), pxWidth);
+        let major = max(majorH, majorV);
+
+        let axisV = lines(abs(worldPos.x), pxWidth);
+        let axisH = lines(abs(worldPos.y), pxWidth);
+        let axis = max(axisH, axisV);
+
+        let gray = max(0.4 * axis, max(0.05 * minor, 0.15 * major));
+        return vec4f(0.04 + vec3f(gray), 1);
       }
     `
 
@@ -117,25 +123,25 @@ function Gradient() {
   return null
 }
 
-function FlameColorHandle(props: {
+function AffineHandle(props: {
+  position: v2f
   color: v2f
-  setColor: (color: v2f) => void
+  setPosition: (pos: v2f) => void
 }) {
   const { canvas } = useCanvas()
   const {
     js: { worldToClip, clipToWorld },
   } = useCamera()
-  const clip = createMemo(() => worldToClip(props.color))
+  const clip = createMemo(() => worldToClip(props.position))
   const startDragging = createDragHandler((initEvent) => {
-    const initialColor = props.color
+    const initialColor = props.position
     const grabPosition = clipToWorld(eventToClip(initEvent, canvas))
     return {
       onPointerMove(ev) {
-        const position = clipToWorld(eventToClip(ev, canvas))
-        const diff = vec2.sub(position, grabPosition, vec2f())
-        const color = vec2.add(initialColor, diff, vec2f())
-        const clampedColor = maxLength2(color, 0.3)
-        props.setColor(clampedColor)
+        const evPosition = clipToWorld(eventToClip(ev, canvas))
+        const diff = vec2.sub(evPosition, grabPosition, vec2f())
+        const position = vec2.add(initialColor, diff, vec2f())
+        props.setPosition(position)
       },
     }
   })
@@ -162,7 +168,7 @@ function FlameColorHandle(props: {
   )
 }
 
-export function FlameColorEditor(props: {
+export function AffineEditor(props: {
   flameFunctions: FlameFunction[]
   setFlameFunctions: SetStoreFunction<FlameFunction[]>
 }) {
@@ -173,17 +179,28 @@ export function FlameColorEditor(props: {
         <AutoCanvas class={ui.canvas} pixelRatio={1}>
           <WheelZoomCamera2D
             eventTarget={div()}
-            initZoom={4}
-            zoomRange={[2, 20]}
+            initZoom={1}
+            zoomRange={[0.5, 20]}
           >
-            <Gradient />
+            <Grid />
             <svg class={ui.svg}>
               <For each={props.flameFunctions}>
                 {(flameFunction, i) => (
-                  <FlameColorHandle
+                  <AffineHandle
+                    position={vec2f(
+                      flameFunction.preAffine.c,
+                      flameFunction.preAffine.f,
+                    )}
                     color={vec2f(flameFunction.color.x, flameFunction.color.y)}
-                    setColor={(color) =>
-                      props.setFlameFunctions(i(), 'color', color)
+                    setPosition={(pos) =>
+                      props.setFlameFunctions(
+                        i(),
+                        'preAffine',
+                        produce((T) => {
+                          T.c = pos.x
+                          T.f = pos.y
+                        }),
+                      )
                     }
                   />
                 )}
