@@ -16,6 +16,7 @@ import { eventToClip } from '@/utils/eventToClip'
 import { vec2 } from 'wgpu-matrix'
 import { FlameFunction } from '@/flame/flameFunction'
 import { SetStoreFunction } from 'solid-js/store'
+import { maxLength2 } from '@/utils/clampLength'
 
 function Gradient() {
   const camera = useCamera()
@@ -132,7 +133,9 @@ function FlameColorHandle(props: {
       onPointerMove(ev) {
         const position = clipToWorld(eventToClip(ev, canvas))
         const diff = vec2.sub(position, grabPosition, vec2f())
-        props.setColor(vec2.add(initialColor, diff, vec2f()))
+        const color = vec2.add(initialColor, diff, vec2f())
+        const clampedColor = maxLength2(color, 0.3)
+        props.setColor(clampedColor)
       },
     }
   })
