@@ -9,7 +9,6 @@ export const ColorGradingUniforms = struct({
   accumulatedIterationCount: f32,
   factor: f32,
   exposure: f32,
-  maxChroma: f32,
 })
 
 const bindGroupLayout = tgpu.bindGroupLayout({
@@ -65,21 +64,13 @@ export function createColorGradingPipeline(
       );
     }
 
-    fn clampLength(v: vec2f, maxLength: f32) -> vec2f {
-      let l = length(v);
-      if (l > maxLength) {
-        return min(l, maxLength) * v / l;
-      }
-      return v;
-    }
-
     @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
       let pos2u = vec2u(in.pos.xy);
       let tex = textureLoad(outputTexture, pos2u, 0);
       let count = tex.a;
       let adjustedCount = count * uniforms.factor / uniforms.accumulatedIterationCount;
       let value = uniforms.exposure * pow(log(adjustedCount + 1), 0.4545);
-      let ab = clampLength(tex.gb / count, uniforms.maxChroma);
+      let ab = tex.gb / count;
       let rgb = gamutClipPreserveChroma(vec3f(drawMode(value), ab));
       return vec4f(rgb, value);
     }

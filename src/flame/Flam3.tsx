@@ -29,7 +29,6 @@ type Flam3Props = {
   drawMode: DrawModeFn
   backgroundColor: v3f
   exposure: number
-  maxChroma: number
   adaptiveFilterEnabled: boolean
   flameFunctions: FlameFunction[]
 }
@@ -92,7 +91,6 @@ export function Flam3(props: Flam3Props) {
       accumulatedIterationCount: 0,
       factor: 1,
       exposure: 1,
-      maxChroma: 0.2,
     })
     .$usage('uniform')
 
@@ -189,7 +187,6 @@ export function Flam3(props: Flam3Props) {
         accumulatedIterationCount: 0,
         factor: factor(),
         exposure: 1,
-        maxChroma: 0.2,
       })
 
       runSkipIfs.update(props.flameFunctions)
@@ -223,7 +220,6 @@ export function Flam3(props: Flam3Props) {
         accumulatedIterationCount: count,
         factor: factor(),
         exposure: 2 * Math.exp(props.exposure),
-        maxChroma: props.maxChroma,
       })
 
       // Encode commands to do the computation

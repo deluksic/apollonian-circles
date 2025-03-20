@@ -34,7 +34,6 @@ function App() {
   const [skipIters, setSkipIters] = createSignal(0)
   const [pointCount, setPointCount] = createSignal(1e6)
   const [exposure, setExposure] = createSignal(0.1)
-  const [maxChroma, setMaxChroma] = createSignal(0.2)
   const [drawMode, setDrawMode] = createSignal(lightMode)
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
   const [adaptiveFilterEnabled, setAdaptiveFilterEnabled] = createSignal(true)
@@ -136,20 +135,6 @@ function App() {
                 onInput={(ev) => setExposure(ev.target.valueAsNumber)}
               />
               {exposure()}
-            </span>
-          </label>
-          <label class={ui.labeledInput}>
-            Max Chroma
-            <span>
-              <input
-                type="range"
-                min={0}
-                max={0.4}
-                step={0.01}
-                value={maxChroma()}
-                onInput={(ev) => setMaxChroma(ev.target.valueAsNumber)}
-              />
-              {maxChroma()}
             </span>
           </label>
           <label class={ui.labeledInput}>
@@ -358,7 +343,6 @@ function App() {
               drawMode={drawMode()}
               backgroundColor={backgroundColor()}
               exposure={exposure()}
-              maxChroma={maxChroma()}
               adaptiveFilterEnabled={adaptiveFilterEnabled()}
               flameFunctions={flameFunctions}
             />
