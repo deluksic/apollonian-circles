@@ -52,7 +52,10 @@ export function createDragHandler(
 
     initEvent.preventDefault()
     initEvent.stopImmediatePropagation()
-    if (initEvent.target instanceof HTMLElement) {
+    if (
+      initEvent.target instanceof HTMLElement ||
+      initEvent.target instanceof SVGElement
+    ) {
       initEvent.target.setPointerCapture(initEvent.pointerId)
     }
     setActive?.(true)

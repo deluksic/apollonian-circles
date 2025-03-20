@@ -98,6 +98,10 @@ export function Camera2D(props: ParentProps<Camera2DProps>) {
     }
   })
 
+  function worldToClip({ x, y }: v2f) {
+    return vec3.transformMat3(vec3f(x, y, 1), uniforms().viewMatrix, vec3f()).xy
+  }
+
   function clipToWorld({ x, y }: v2f) {
     return vec3.transformMat3(
       vec3f(x, y, 1),
@@ -122,6 +126,7 @@ export function Camera2D(props: ParentProps<Camera2DProps>) {
           clipToPixels: camera2DClipToPixels,
         },
         js: {
+          worldToClip,
           clipToWorld,
         },
         zoom,

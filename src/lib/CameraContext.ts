@@ -13,6 +13,7 @@ export type CameraContext = {
     clipToPixels: TgpuFn<[Vec2f], Vec2f>
   }
   js: {
+    worldToClip: (clip: v2f) => v2f
     clipToWorld: (clip: v2f) => v2f
   }
   zoom: Accessor<number>

@@ -9,13 +9,30 @@ import {
   batch,
   createEffect,
   onCleanup,
+  untrack,
 } from 'solid-js'
 import { vec2f, v2f } from 'typegpu/data'
+import { clamp } from 'typegpu/std'
 import { vec2 } from 'wgpu-matrix'
 
-export function WheelZoomCamera2D(props: ParentProps) {
+type WheelZoomCamera2DProps = {
+  initZoom?: number
+  zoomRange?: [number, number]
+}
+
+export function WheelZoomCamera2D(props: ParentProps<WheelZoomCamera2DProps>) {
   const { canvas } = useCanvas()
-  const [zoom, setZoom] = createSignal(1)
+  const [zoom, _setZoom] = createSignal(untrack(() => props.initZoom ?? 1))
+
+  function setZoom(value: number) {
+    if (props.zoomRange) {
+      const [min, max] = props.zoomRange
+      value = clamp(value, min, max)
+    }
+    _setZoom(value)
+    return value
+  }
+
   const [position, setPosition] = createSignal(vec2f())
   let clipToWorld: (clip: v2f) => v2f | undefined
 
@@ -46,13 +63,12 @@ export function WheelZoomCamera2D(props: ParentProps) {
       return
     }
     const oldZoom = zoom()
-    const newZoom = oldZoom * (1 - ev.deltaY * 0.001)
-    const ratio = oldZoom / newZoom
     batch(() => {
+      const newZoom = setZoom(oldZoom * (1 - ev.deltaY * 0.001))
+      const ratio = oldZoom / newZoom
       setPosition(({ x, y }) =>
         vec2f(x + (world.x - x) * (1 - ratio), y + (world.y - y) * (1 - ratio)),
       )
-      setZoom(newZoom)
     })
   }
 

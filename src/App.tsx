@@ -26,6 +26,7 @@ import { ExampleID, examples } from './flame/examples'
 import { Modal, useRequestModal } from './components/Modal/Modal'
 import { sum } from './utils/sum'
 import { isVariationType } from '@/flame/variations'
+import { FlameColorEditor } from './components/FlameColorEditor/FlameColorEditor'
 
 function App() {
   const [pixelRatio, setPixelRatio] = createSignal(1.0)
@@ -62,6 +63,10 @@ function App() {
   return (
     <div class={ui.fullscreen}>
       <div class={ui.sidebar} classList={{ [ui.show]: showSidebar() }}>
+        <FlameColorEditor
+          flameFunctions={flameFunctions}
+          setFlameFunctions={setFlameFunctions}
+        />
         <Card>
           <label class={ui.labeledInput}>
             Resolution
@@ -321,6 +326,25 @@ function App() {
             }
           >
             <Plus />
+          </button>
+        </Card>
+        <Card class={ui.addFlameCard}>
+          <button
+            class={ui.addFlameButton}
+            onClick={async () => {
+              // TODO: fetch this canvas in a more robust way
+              const canvas = document.getElementsByClassName(ui.canvas).item(0)
+              if (!(canvas instanceof HTMLCanvasElement)) {
+                return
+              }
+              const fileURL = canvas.toDataURL()
+              const downloadLink = document.createElement('a')
+              downloadLink.href = fileURL
+              downloadLink.download = 'flame.png'
+              downloadLink.click()
+            }}
+          >
+            Export PNG
           </button>
         </Card>
       </div>
