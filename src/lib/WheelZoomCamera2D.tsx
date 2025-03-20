@@ -10,6 +10,7 @@ import {
   createEffect,
   onCleanup,
   untrack,
+  createMemo,
 } from 'solid-js'
 import { vec2f, v2f } from 'typegpu/data'
 import { clamp } from 'typegpu/std'
@@ -18,11 +19,13 @@ import { vec2 } from 'wgpu-matrix'
 type WheelZoomCamera2DProps = {
   initZoom?: number
   zoomRange?: [number, number]
+  eventTarget?: HTMLElement
 }
 
 export function WheelZoomCamera2D(props: ParentProps<WheelZoomCamera2DProps>) {
   const { canvas } = useCanvas()
   const [zoom, _setZoom] = createSignal(untrack(() => props.initZoom ?? 1))
+  const el = createMemo(() => props.eventTarget ?? canvas)
 
   function setZoom(value: number) {
     if (props.zoomRange) {
@@ -40,13 +43,13 @@ export function WheelZoomCamera2D(props: ParentProps<WheelZoomCamera2DProps>) {
     if (!clipToWorld) {
       return
     }
-    const grabPosition = clipToWorld(eventToClip(initEvent))
+    const grabPosition = clipToWorld(eventToClip(initEvent, el()))
     if (!grabPosition) {
       return
     }
     return {
       onPointerMove(event) {
-        const pos = clipToWorld(eventToClip(event))
+        const pos = clipToWorld(eventToClip(event, el()))
         if (!pos) {
           return
         }
@@ -57,7 +60,7 @@ export function WheelZoomCamera2D(props: ParentProps<WheelZoomCamera2DProps>) {
 
   function onWheel(ev: WheelEvent) {
     ev.preventDefault()
-    const clip = eventToClip(ev)
+    const clip = eventToClip(ev, el())
     const world = clipToWorld?.(clip)
     if (!world) {
       return
@@ -73,11 +76,12 @@ export function WheelZoomCamera2D(props: ParentProps<WheelZoomCamera2DProps>) {
   }
 
   createEffect(() => {
-    canvas.addEventListener('pointerdown', pan)
-    canvas.addEventListener('wheel', onWheel, { passive: false })
+    const eventTarget = el()
+    eventTarget.addEventListener('pointerdown', pan)
+    eventTarget.addEventListener('wheel', onWheel, { passive: false })
     onCleanup(() => {
-      canvas.removeEventListener('pointerdown', pan)
-      canvas.removeEventListener('wheel', onWheel)
+      eventTarget.removeEventListener('pointerdown', pan)
+      eventTarget.removeEventListener('wheel', onWheel)
     })
   })
 

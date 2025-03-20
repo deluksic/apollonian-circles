@@ -4,7 +4,7 @@ import { WheelZoomCamera2D } from '@/lib/WheelZoomCamera2D'
 import ui from './FlameColorEditor.module.css'
 import { useCamera } from '@/lib/CameraContext'
 import { useRootContext } from '@/lib/RootContext'
-import { createEffect, createMemo, For } from 'solid-js'
+import { createEffect, createMemo, createSignal, For } from 'solid-js'
 import { createAnimationFrame } from '@/utils/createAnimationFrame'
 import { gamutClipPreserveChroma } from '@/flame/oklab'
 import { wgsl } from '@/utils/wgsl'
@@ -137,7 +137,13 @@ function FlameColorHandle(props: {
     }
   })
   return (
-    <g class={ui.handle} onPointerDown={startDragging}>
+    <g
+      class={ui.handle}
+      // TODO: temporarily using on:pointerdown and not onPointerDown
+      // because otherwise WheelZoomCamera2D steals the event
+      // due to solidjs event delegation.
+      on:pointerdown={startDragging}
+    >
       <circle
         class={ui.handleCircle}
         cx={`${(50 * (clip().x + 1)).toFixed(4)}%`}
@@ -156,11 +162,16 @@ export function FlameColorEditor(props: {
   flameFunctions: FlameFunction[]
   setFlameFunctions: SetStoreFunction<FlameFunction[]>
 }) {
+  const [div, setDiv] = createSignal<HTMLDivElement>()
   return (
-    <div class={ui.editorCard}>
+    <div ref={setDiv} class={ui.editorCard}>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
         <AutoCanvas class={ui.canvas} pixelRatio={1}>
-          <WheelZoomCamera2D initZoom={4} zoomRange={[2, 20]}>
+          <WheelZoomCamera2D
+            eventTarget={div()}
+            initZoom={4}
+            zoomRange={[2, 20]}
+          >
             <Gradient />
             <svg class={ui.svg}>
               <For each={props.flameFunctions}>
