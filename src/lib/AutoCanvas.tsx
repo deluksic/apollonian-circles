@@ -3,7 +3,7 @@ import { ElementSize, useElementSize } from '@/utils/useElementSize'
 import { CanvasContextProvider } from './CanvasContext'
 import { useRootContext } from './RootContext'
 
-const { min, max } = Math
+const { min, max, floor } = Math
 
 type AutoCanvasProps = {
   class?: string
@@ -18,21 +18,26 @@ export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
     const maxDim = device.limits.maxTextureDimension2D
     return {
       ...size,
-      widthPX: max(1, min(size.widthPX * pixelRatio, maxDim)),
-      heightPX: max(1, min(size.heightPX * pixelRatio, maxDim)),
+      widthPX: floor(max(1, min(size.widthPX * pixelRatio, maxDim))),
+      heightPX: floor(max(1, min(size.heightPX * pixelRatio, maxDim))),
     }
   }
 
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement>()
-  const canvasSize = useElementSize(canvas, (size) => {
-    const el = canvas()
-    if (!el) {
-      return
-    }
-    const { widthPX, heightPX } = scaledCanvasSize(size)
-    el.width = widthPX
-    el.height = heightPX
-  })
+  const canvasSize = useElementSize(
+    () => canvas()?.parentElement,
+    (size) => {
+      const el = canvas()
+      if (!el) {
+        return
+      }
+      const { widthPX, heightPX } = scaledCanvasSize(size)
+      el.width = widthPX
+      el.height = heightPX
+      el.style.width = `${size.width.toFixed(0)}px`
+      el.style.height = `${size.height.toFixed(0)}px`
+    },
+  )
 
   // also update canvas size when props.pixelRatio changes
   createEffect(() => {
@@ -60,11 +65,7 @@ export function AutoCanvas(props: ParentProps<AutoCanvasProps>) {
 
   return (
     <>
-      <canvas
-        ref={setCanvas}
-        class={props.class}
-        style={{ width: '100%', height: '100%' }}
-      />
+      <canvas ref={setCanvas} class={props.class} />
       <Show when={canvas()} keyed>
         {(canvas) => (
           <CanvasContextProvider

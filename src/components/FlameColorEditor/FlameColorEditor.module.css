@@ -1,10 +1,9 @@
-.editor-card.editor-card {
+.editor-card {
   display: grid;
   grid-template-areas: 'overlap';
-  gap: 0;
-  padding: 0;
+  border-radius: 1rem;
   overflow: hidden;
-  height: 25vh;
+  min-height: 25vh;
 
   & > * {
     grid-area: overlap;
@@ -13,7 +12,6 @@
 
 .canvas {
   image-rendering: pixelated;
-  min-height: 0;
 }
 
 .svg {

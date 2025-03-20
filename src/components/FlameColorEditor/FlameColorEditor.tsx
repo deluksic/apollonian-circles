@@ -10,7 +10,6 @@ import { gamutClipPreserveChroma } from '@/flame/oklab'
 import { wgsl } from '@/utils/wgsl'
 import { useCanvas } from '@/lib/CanvasContext'
 import { PI } from '@/flame/constants'
-import { Card } from '../ControlCard/ControlCard'
 import { v2f, vec2f } from 'typegpu/data'
 import { createDragHandler } from '@/utils/createDragHandler'
 import { eventToClip } from '@/utils/eventToClip'
@@ -133,7 +132,6 @@ function FlameColorHandle(props: {
       onPointerMove(ev) {
         const position = clipToWorld(eventToClip(ev, canvas))
         const diff = vec2.sub(position, grabPosition, vec2f())
-        console.log(position, grabPosition, diff)
         props.setColor(vec2.add(initialColor, diff, vec2f()))
       },
     }
@@ -159,7 +157,7 @@ export function FlameColorEditor(props: {
   setFlameFunctions: SetStoreFunction<FlameFunction[]>
 }) {
   return (
-    <Card class={ui.editorCard}>
+    <div class={ui.editorCard}>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
         <AutoCanvas class={ui.canvas} pixelRatio={1}>
           <WheelZoomCamera2D initZoom={4} zoomRange={[2, 20]}>
@@ -179,6 +177,6 @@ export function FlameColorEditor(props: {
           </WheelZoomCamera2D>
         </AutoCanvas>
       </Root>
-    </Card>
+    </div>
   )
 }
