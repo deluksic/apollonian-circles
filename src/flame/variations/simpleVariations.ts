@@ -196,3 +196,36 @@ export const cosine = simpleVariation(
   }`,
   { PI },
 )
+
+export const bubble = simpleVariation(/* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    let r = length(pos);
+    let r2 = r * r;
+    let factor = 4 / (r2 + 4);
+    return factor * vec2f(pos.x, pos.y);
+  }`)
+
+export const cylinder = simpleVariation(/* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    return vec2f(sin(pos.x), pos.y);
+  }`)
+
+export const noise = simpleVariation(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    let rand = random();
+    let angle = 2 * PI * random();
+    return rand * vec2f(pos.x * cos(angle), pos.y * sin(angle));
+  }`,
+  { random, PI },
+)
+
+export const blurVar = simpleVariation(
+  /* wgsl */ `
+  (pos: vec2f) -> vec2f {
+    let rand = random();
+    let angle = 2 * PI * random();
+    return rand * vec2f(cos(angle), sin(angle));
+  }`,
+  { random, PI },
+)
