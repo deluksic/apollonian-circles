@@ -1,7 +1,7 @@
 import { Accessor, createContext } from 'solid-js'
 import { useContextSafe } from '@/utils/useContextSafe'
 import { TgpuBindGroup, TgpuBindGroupLayout, TgpuFn } from 'typegpu'
-import { v2f, Vec2f } from 'typegpu/data'
+import { F32, v2f, Vec2f } from 'typegpu/data'
 
 export type CameraContext = {
   update: () => void
@@ -11,6 +11,8 @@ export type CameraContext = {
     worldToClip: TgpuFn<[Vec2f], Vec2f>
     clipToWorld: TgpuFn<[Vec2f], Vec2f>
     clipToPixels: TgpuFn<[Vec2f], Vec2f>
+    resolution: TgpuFn<[], Vec2f>
+    pixelRatio: TgpuFn<[], F32>
   }
   js: {
     worldToClip: (clip: v2f) => v2f

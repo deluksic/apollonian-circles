@@ -1,4 +1,4 @@
-import { mat3x3f, mat4x4f, struct, v2f, vec2f, vec3f } from 'typegpu/data'
+import { f32, mat3x3f, mat4x4f, struct, v2f, vec2f, vec3f } from 'typegpu/data'
 import tgpu from 'typegpu'
 import { CameraContextProvider } from './CameraContext'
 import { createMemo, ParentProps } from 'solid-js'
@@ -10,6 +10,7 @@ export const Camera2DUniforms = struct({
   viewMatrix: mat3x3f,
   viewMatrixInverse: mat3x3f,
   resolution: vec2f,
+  pixelRatio: f32,
 }).$name('Camera2DUniforms')
 
 export const Camera2DBindGroupLayout = tgpu
@@ -50,6 +51,26 @@ export const camera2DClipToPixels = tgpu['~unstable']
   .$uses({ ...Camera2DBindGroupLayout.bound })
   .$name('camera2DClipToPixels')
 
+export const camera2DResolution = tgpu['~unstable']
+  .fn([], vec2f)
+  .does(
+    /* wgsl */ `() -> vec2f {
+      return camera2DUniforms.resolution;
+    }`,
+  )
+  .$uses({ ...Camera2DBindGroupLayout.bound })
+  .$name('camera2DResolution')
+
+export const camera2DPixelRatio = tgpu['~unstable']
+  .fn([], f32)
+  .does(
+    /* wgsl */ `() -> f32 {
+      return camera2DUniforms.pixelRatio;
+    }`,
+  )
+  .$uses({ ...Camera2DBindGroupLayout.bound })
+  .$name('camera2DPixelRatio')
+
 type Camera2DProps = {
   position: v2f
   fovy: number
@@ -57,7 +78,7 @@ type Camera2DProps = {
 
 export function Camera2D(props: ParentProps<Camera2DProps>) {
   const { root } = useRootContext()
-  const { canvasSize } = useCanvas()
+  const { canvasSize, pixelRatio } = useCanvas()
   const zoom = () => 1 / props.fovy
 
   const uniformsBuffer = root
@@ -95,6 +116,7 @@ export function Camera2D(props: ParentProps<Camera2DProps>) {
       viewMatrix,
       viewMatrixInverse,
       resolution: vec2f(width, height),
+      pixelRatio: pixelRatio() * devicePixelRatio,
     }
   })
 
@@ -124,6 +146,8 @@ export function Camera2D(props: ParentProps<Camera2DProps>) {
           worldToClip: camera2DWorldToClip,
           clipToWorld: camera2DClipToWorld,
           clipToPixels: camera2DClipToPixels,
+          resolution: camera2DResolution,
+          pixelRatio: camera2DPixelRatio,
         },
         js: {
           worldToClip,

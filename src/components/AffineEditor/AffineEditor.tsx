@@ -26,6 +26,8 @@ function Grid() {
     const renderShaderCode = wgsl/* wgsl */ `
       ${{
         clipToWorld: camera.wgsl.clipToWorld,
+        resolution: camera.wgsl.resolution,
+        pixelRatio: camera.wgsl.pixelRatio,
         gamutClipPreserveChroma,
         PI,
       }}
@@ -58,7 +60,21 @@ function Grid() {
         return saturate(2 * (2 * pxWidth - x) / pxWidth);
       }
 
+      fn sdBox(p: vec2f, size: vec2f) -> f32{
+        let d = abs(p) - size;
+        return length(max(d, vec2f(0))) + min(max(d.x, d.y), 0);
+      }
+
+      fn sdBoxRound(p: vec2f, size: vec2f, r: f32) -> f32{
+        return sdBox(p, size - r) - r;
+      }
+
       @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
+        let halfRes = 0.5 * resolution();
+        let pxRatio = pixelRatio();
+        let border = sdBoxRound(in.pos.xy - halfRes, halfRes - 3 * pxRatio, 13 * pxRatio);
+        let borderAA = saturate(border);
+
         let worldPos = clipToWorld(in.clip);
         let pxWidth = dpdx(worldPos.x);
 
@@ -74,7 +90,7 @@ function Grid() {
         let axisH = lines(abs(worldPos.y), pxWidth);
         let axis = max(axisH, axisV);
 
-        let gray = max(0.4 * axis, max(0.05 * minor, 0.15 * major));
+        let gray = max(0.4 * axis, max(0.05 * max(borderAA, minor), 0.15 * major));
         return vec4f(0.04 + vec3f(gray), 1);
       }
     `
@@ -179,7 +195,7 @@ export function AffineEditor(props: {
         <AutoCanvas class={ui.canvas} pixelRatio={1}>
           <WheelZoomCamera2D
             eventTarget={div()}
-            initZoom={1}
+            initZoom={0.9}
             zoomRange={[0.5, 20]}
           >
             <Grid />

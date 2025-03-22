@@ -27,6 +27,8 @@ function Gradient() {
     const renderShaderCode = wgsl/* wgsl */ `
       ${{
         clipToWorld: camera.wgsl.clipToWorld,
+        resolution: camera.wgsl.resolution,
+        pixelRatio: camera.wgsl.pixelRatio,
         gamutClipPreserveChroma,
         PI,
       }}
@@ -57,7 +59,20 @@ function Gradient() {
         return min(l, maxLength) * v / max(eps, l);
       }
 
+      fn sdBox(p: vec2f, size: vec2f) -> f32{
+          let d = abs(p) - size;
+          return length(max(d, vec2f(0))) + min(max(d.x, d.y), 0);
+      }
+
+      fn sdBoxRound(p: vec2f, size: vec2f, r: f32) -> f32{
+        return sdBox(p, size - r) - r;
+      }
+
       @fragment fn fs(in: VertexOutput) -> @location(0) vec4f {
+        let halfRes = 0.5 * resolution();
+        let pxRatio = pixelRatio();
+        let border = sdBoxRound(in.pos.xy - halfRes, halfRes - 3 * pxRatio, 13 * pxRatio);
+        let borderAA = saturate(border);
         let worldPos = clipToWorld(in.clip);
         let pxWidth = fwidth(worldPos.y);
         let r = length(worldPos);
@@ -68,7 +83,7 @@ function Gradient() {
         let gridRadialW = fwidth(gridRadial);
         let gridRadialLineAA = saturate(2 * (min(0.5, 10 * pxWidth / r) - gridRadial) / gridRadialW);
         let fadeToCenter = smoothstep(0.005, 0.05, r);
-        let gridAA = max(gridCircleLineAA, gridRadialLineAA * fadeToCenter);
+        let gridAA = max(borderAA, max(gridCircleLineAA, gridRadialLineAA * fadeToCenter));
         return vec4f(gamutClipPreserveChroma(vec3f(0.7 - 0.05 * gridAA, clampLength(worldPos, 0.2))), 1);
       }
     `
