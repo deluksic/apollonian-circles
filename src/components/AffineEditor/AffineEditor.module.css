@@ -46,3 +46,24 @@
   /* otherwise transparent fill is not hoverable */
   pointer-events: all;
 }
+
+.handle-box {
+  fill: none;
+  stroke: white;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.handle-box-grab-area {
+  stroke: transparent;
+  stroke-width: 0.5rem;
+  cursor: nesw-resize;
+  /* otherwise transparent fill is not hoverable */
+  pointer-events: all;
+}
+
+.dashed {
+  stroke-dasharray: 5px 2px;
+}

@@ -161,12 +161,12 @@ function FlameColorHandle(props: {
       // because otherwise WheelZoomCamera2D steals the event
       // due to solidjs event delegation.
       on:pointerdown={startDragging}
+      style={{ '--a': props.color.x, '--b': props.color.y }}
     >
       <circle
         class={ui.handleCircle}
         cx={`${(50 * (clip().x + 1)).toFixed(4)}%`}
         cy={`${(50 * (1 - clip().y)).toFixed(4)}%`}
-        style={{ '--a': props.color.x, '--b': props.color.y }}
       />
       <circle
         class={ui.handleCircleGrabArea}

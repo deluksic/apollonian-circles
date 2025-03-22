@@ -15,7 +15,16 @@ import { createDragHandler } from '@/utils/createDragHandler'
 import { eventToClip } from '@/utils/eventToClip'
 import { vec2 } from 'wgpu-matrix'
 import { FlameFunction } from '@/flame/flameFunction'
-import { produce, SetStoreFunction } from 'solid-js/store'
+import { SetStoreFunction } from 'solid-js/store'
+import { AffineParams } from '@/flame/variations/types'
+
+const { sqrt } = Math
+
+function vec2Normalize(a: v2f) {
+  // vec2.normalize has inexplicable 1e-5 check so we implement our own
+  const len = sqrt(a.x * a.x + a.y * a.y) || 1
+  return vec2f(a.x / len, a.y / len)
+}
 
 function Grid() {
   const camera = useCamera()
@@ -90,8 +99,8 @@ function Grid() {
         let axisH = lines(abs(worldPos.y), pxWidth);
         let axis = max(axisH, axisV);
 
-        let gray = max(0.4 * axis, max(0.05 * max(borderAA, minor), 0.15 * major));
-        return vec4f(0.04 + vec3f(gray), 1);
+        let gray = max(0.3 * axis, max(0.05 * max(borderAA, minor), 0.15 * major));
+        return vec4f(0.02 + vec3f(gray), 1);
       }
     `
 
@@ -140,47 +149,171 @@ function Grid() {
 }
 
 function AffineHandle(props: {
-  position: v2f
+  transform: AffineParams
   color: v2f
-  setPosition: (pos: v2f) => void
+  setTransform: (pos: AffineParams) => void
 }) {
-  const { canvas } = useCanvas()
+  const { canvas, canvasSize } = useCanvas()
   const {
     js: { worldToClip, clipToWorld },
   } = useCamera()
-  const clip = createMemo(() => worldToClip(props.position))
+
+  const aspect = createMemo(() => canvasSize().width / canvasSize().height)
+  const position = createMemo(() => vec2f(props.transform.c, props.transform.f))
+  const clipPosition = createMemo(() => worldToClip(position()))
+  const clipTransform = createMemo(() => {
+    // prettier-ignore
+    const { a, b, c, d, e, f } = props.transform
+    const zero = worldToClip(vec2f(0, 0))
+    const x = vec2.sub(worldToClip(vec2f(a, d)), zero, vec2f())
+    const y = vec2.sub(worldToClip(vec2f(b, e)), zero, vec2f())
+    const t = worldToClip(vec2f(c, f))
+    const s = aspect()
+    return [x.x * s, y.x * s, x.y, y.y, t.x * s, t.y]
+  })
   const startDragging = createDragHandler((initEvent) => {
-    const initialColor = props.position
+    const initialTransform = { ...props.transform }
     const grabPosition = clipToWorld(eventToClip(initEvent, canvas))
     return {
       onPointerMove(ev) {
         const evPosition = clipToWorld(eventToClip(ev, canvas))
         const diff = vec2.sub(evPosition, grabPosition, vec2f())
-        const position = vec2.add(initialColor, diff, vec2f())
-        props.setPosition(position)
+        const position = vec2.add(
+          vec2f(initialTransform.c, initialTransform.f),
+          diff,
+          vec2f(),
+        )
+        props.setTransform({
+          ...initialTransform,
+          c: position.x,
+          f: position.y,
+        })
       },
     }
   })
+  const startScaling = createDragHandler((initEvent) => {
+    const { a, b, d, e, ...rest } = props.transform
+    const grabPosition = clipToWorld(eventToClip(initEvent, canvas))
+    const center = position()
+    return {
+      onPointerMove(ev) {
+        const evPosition = clipToWorld(eventToClip(ev, canvas))
+        const grabDiff = vec2.sub(grabPosition, center, vec2f())
+        const evDiff = vec2.sub(evPosition, center, vec2f())
+        const ratio = vec2.length(evDiff) / vec2.length(grabDiff)
+        const grabNorm = vec2Normalize(grabDiff)
+        const evNorm = vec2Normalize(evDiff)
+        const cos = ev.ctrlKey || ev.metaKey ? 1 : vec2.dot(evNorm, grabNorm)
+        const sin =
+          ev.ctrlKey || ev.metaKey ? 0 : vec2.cross(evNorm, grabNorm)[2]!
+        props.setTransform({
+          ...rest,
+          a: (a * cos + b * sin) * ratio,
+          b: (-a * sin + b * cos) * ratio,
+          d: (d * cos + e * sin) * ratio,
+          e: (-d * sin + e * cos) * ratio,
+        })
+      },
+    }
+  })
+  const startSkewingX = createDragHandler((initEvent) => {
+    const { a, b, ...rest } = props.transform
+    const grabPosition = clipToWorld(eventToClip(initEvent, canvas))
+    const center = position()
+    return {
+      onPointerMove(ev) {
+        const evPosition = clipToWorld(eventToClip(ev, canvas))
+        const grabDiff = vec2.sub(grabPosition, center, vec2f())
+        const evDiff = vec2.sub(evPosition, center, vec2f())
+        const ratio = vec2.length(evDiff) / vec2.length(grabDiff)
+        const grabNorm = vec2Normalize(grabDiff)
+        const evNorm = vec2Normalize(evDiff)
+        const cos = ev.ctrlKey || ev.metaKey ? 1 : vec2.dot(evNorm, grabNorm)
+        const sin =
+          ev.ctrlKey || ev.metaKey ? 0 : vec2.cross(evNorm, grabNorm)[2]!
+        props.setTransform({
+          ...rest,
+          a: (a * cos + b * sin) * ratio,
+          b: (-a * sin + b * cos) * ratio,
+        })
+      },
+    }
+  })
+  const startSkewingY = createDragHandler((initEvent) => {
+    const { d, e, ...rest } = props.transform
+    const grabPosition = clipToWorld(eventToClip(initEvent, canvas))
+    const center = position()
+    return {
+      onPointerMove(ev) {
+        const evPosition = clipToWorld(eventToClip(ev, canvas))
+        const grabDiff = vec2.sub(grabPosition, center, vec2f())
+        const evDiff = vec2.sub(evPosition, center, vec2f())
+        const ratio = vec2.length(evDiff) / vec2.length(grabDiff)
+        const grabNorm = vec2Normalize(grabDiff)
+        const evNorm = vec2Normalize(evDiff)
+        const cos = ev.ctrlKey || ev.metaKey ? 1 : vec2.dot(evNorm, grabNorm)
+        const sin =
+          ev.ctrlKey || ev.metaKey ? 0 : vec2.cross(evNorm, grabNorm)[2]!
+        props.setTransform({
+          ...rest,
+          d: (d * cos + e * sin) * ratio,
+          e: (-d * sin + e * cos) * ratio,
+        })
+      },
+    }
+  })
+  const p = (v: number) => v + '%'
+  const x = () => 50 * (clipPosition().x + 1)
+  const y = () => 50 * (1 - clipPosition().y)
+  const corners = `
+    M -1,-1 m 0.25,0 L -1,-1 v 0.25
+    M 1,-1 m -0.25,0 L 1,-1 v 0.25
+    M -1,1 m 0.25,0 L -1,1 v -0.25
+    M 1,1 m -0.25,0 L 1,1 v -0.25
+  `
   return (
-    <g
-      class={ui.handle}
-      // TODO: temporarily using on:pointerdown and not onPointerDown
-      // because otherwise WheelZoomCamera2D steals the event
-      // due to solidjs event delegation.
-      on:pointerdown={startDragging}
-    >
-      <circle
-        class={ui.handleCircle}
-        cx={`${(50 * (clip().x + 1)).toFixed(4)}%`}
-        cy={`${(50 * (1 - clip().y)).toFixed(4)}%`}
+    <>
+      <svg viewBox={`-${aspect()} -1 ${2 * aspect()} 2`}>
+        <g transform={`scale(1, -1) matrix(${clipTransform()})`}>
+          <path class={ui.handleBox} d={corners} />
+          <path
+            classList={{ [ui.handleBox]: true, [ui.handleBoxGrabArea]: true }}
+            d={corners}
+            // TODO: temporarily using on:pointerdown and not onPointerDown
+            // because otherwise WheelZoomCamera2D steals the event
+            // due to solidjs event delegation.
+            on:pointerdown={startScaling}
+          />
+          <path class={ui.handleBox} d="M 0,0 V 1" marker-end="url(#arrow)" />
+          <path
+            classList={{ [ui.handleBox]: true, [ui.handleBoxGrabArea]: true }}
+            d="M 0,0 V 1"
+            on:pointerdown={startSkewingY}
+          />
+          <path class={ui.handleBox} d="M 0,0 L 1,0" marker-end="url(#arrow)" />
+          <path
+            classList={{ [ui.handleBox]: true, [ui.handleBoxGrabArea]: true }}
+            d="M 0,0 L 1,0"
+            on:pointerdown={startSkewingX}
+          />
+          <path
+            classList={{ [ui.handleBox]: true, [ui.dashed]: true }}
+            d="M 0,0 V -1 M 0,0 L -1,0"
+          />
+        </g>
+      </svg>
+      <g
+        class={ui.handle}
+        // TODO: temporarily using on:pointerdown and not onPointerDown
+        // because otherwise WheelZoomCamera2D steals the event
+        // due to solidjs event delegation.
+        on:pointerdown={startDragging}
         style={{ '--a': props.color.x, '--b': props.color.y }}
-      />
-      <circle
-        class={ui.handleCircleGrabArea}
-        cx={`${(50 * (clip().x + 1)).toFixed(4)}%`}
-        cy={`${(50 * (1 - clip().y)).toFixed(4)}%`}
-      />
-    </g>
+      >
+        <circle class={ui.handleCircle} cx={p(x())} cy={p(y())} />
+        <circle class={ui.handleCircleGrabArea} cx={p(x())} cy={p(y())} />
+      </g>
+    </>
   )
 }
 
@@ -200,23 +333,27 @@ export function AffineEditor(props: {
           >
             <Grid />
             <svg class={ui.svg}>
+              <defs>
+                <marker
+                  id="arrow"
+                  viewBox="0 0 10 10"
+                  refX="5"
+                  refY="5"
+                  markerWidth="6"
+                  markerHeight="6"
+                  orient="auto-start-reverse"
+                  fill="white"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" />
+                </marker>
+              </defs>
               <For each={props.flameFunctions}>
                 {(flameFunction, i) => (
                   <AffineHandle
-                    position={vec2f(
-                      flameFunction.preAffine.c,
-                      flameFunction.preAffine.f,
-                    )}
+                    transform={flameFunction.preAffine}
                     color={vec2f(flameFunction.color.x, flameFunction.color.y)}
-                    setPosition={(pos) =>
-                      props.setFlameFunctions(
-                        i(),
-                        'preAffine',
-                        produce((T) => {
-                          T.c = pos.x
-                          T.f = pos.y
-                        }),
-                      )
+                    setTransform={(affine) =>
+                      props.setFlameFunctions(i(), 'preAffine', affine)
                     }
                   />
                 )}

@@ -30,10 +30,10 @@ import { FlameColorEditor } from './components/FlameColorEditor/FlameColorEditor
 import { AffineEditor } from './components/AffineEditor/AffineEditor'
 
 function App() {
-  const [pixelRatio, setPixelRatio] = createSignal(1.0)
+  const [pixelRatio, setPixelRatio] = createSignal(0.25)
   const [outerIters, setOuterIters] = createSignal(1)
   const [skipIters, setSkipIters] = createSignal(0)
-  const [pointCount, setPointCount] = createSignal(1e6)
+  const [pointCount, setPointCount] = createSignal(1e4)
   const [exposure, setExposure] = createSignal(0.1)
   const [drawMode, setDrawMode] = createSignal(lightMode)
   const [backgroundColor, setBackgroundColor] = createSignal(vec3f(0, 0, 0))
