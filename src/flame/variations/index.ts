@@ -38,6 +38,7 @@ import { rings2 } from './parametric/rings2'
 import { perspective } from './parametric/perspective'
 import { juliaN } from './parametric/juliaN'
 import { juliaScope } from './parametric/juliaScope'
+import { radialBlurVar } from './parametric/radialBlur'
 
 export const transformVariations = {
   linear,
@@ -79,6 +80,7 @@ export const transformVariations = {
   juliaN,
   juliaScope,
   blurVar,
+  radialBlurVar,
 }
 
 export type TransformVariation = keyof typeof transformVariations
