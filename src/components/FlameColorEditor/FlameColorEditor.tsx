@@ -83,7 +83,7 @@ function Gradient() {
         let gridRadialW = fwidth(gridRadial);
         let gridRadialLineAA = saturate(2 * (min(0.5, 10 * pxWidth / r) - gridRadial) / gridRadialW);
         let fadeToCenter = smoothstep(0.005, 0.05, r);
-        let gridAA = max(borderAA, max(gridCircleLineAA, gridRadialLineAA * fadeToCenter));
+        let gridAA = max(gridCircleLineAA, gridRadialLineAA * fadeToCenter) + borderAA;
         return vec4f(gamutClipPreserveChroma(vec3f(0.7 - 0.05 * gridAA, clampLength(worldPos, 0.2))), 1);
       }
     `
