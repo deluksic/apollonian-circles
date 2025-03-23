@@ -9,20 +9,25 @@ import {
   vec4u,
 } from 'typegpu/data'
 
+export type VariationInfoType = Infer<typeof VariationInfo>
+export const VariationInfo = struct({
+  weight: f32,
+})
+
 export type SimpleVariation = {
   type: 'simple'
-  fn: TgpuFn<[Vec2f], Vec2f>
+  fn: TgpuFn<[Vec2f, typeof VariationInfo], Vec2f>
 }
 
 export type DependentVariation = {
   type: 'dependent'
-  fn: TgpuFn<[Vec2f, typeof AffineParams], Vec2f>
+  fn: TgpuFn<[Vec2f, typeof VariationInfo, typeof AffineParams], Vec2f>
 }
 
 export type ParametricVariation<T extends AnyWgslData> = {
   type: 'parametric'
   paramShema: T
-  fn: TgpuFn<[Vec2f, T], Vec2f>
+  fn: TgpuFn<[Vec2f, typeof VariationInfo, T], Vec2f>
 }
 
 export const simpleVariation = (
@@ -30,7 +35,10 @@ export const simpleVariation = (
   dependencyMap: Record<string, unknown> = {},
 ): SimpleVariation => ({
   type: 'simple',
-  fn: tgpu['~unstable'].fn([vec2f], vec2f).does(wgsl).$uses(dependencyMap),
+  fn: tgpu['~unstable']
+    .fn([vec2f, VariationInfo], vec2f)
+    .does(wgsl)
+    .$uses(dependencyMap),
 })
 
 export const dependentVariation = (
@@ -39,7 +47,7 @@ export const dependentVariation = (
 ): DependentVariation => ({
   type: 'dependent',
   fn: tgpu['~unstable']
-    .fn([vec2f, AffineParams], vec2f)
+    .fn([vec2f, VariationInfo, AffineParams], vec2f)
     .does(wgsl)
     .$uses(dependencyMap),
 })
@@ -52,7 +60,7 @@ export const parametricVariation = <T extends AnyWgslData>(
   type: 'parametric',
   paramShema,
   fn: tgpu['~unstable']
-    .fn([vec2f, paramShema], vec2f)
+    .fn([vec2f, VariationInfo, paramShema], vec2f)
     .does(wgsl)
     .$uses(dependencyMap),
 })

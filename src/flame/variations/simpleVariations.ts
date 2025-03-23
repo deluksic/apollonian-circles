@@ -3,13 +3,13 @@ import { PI } from '../constants'
 import { simpleVariation } from './types'
 
 export const linear = simpleVariation(/* wgsl */ `
-  (pos: vec2f) -> vec2f {
+  (pos: vec2f, varInfo: VariationInfo) -> vec2f {
     return pos;
   }`)
 
 export const randomDisk = simpleVariation(
   /* wgsl */ `
-  (pos: vec2f) -> vec2f {
+  (_pos: vec2f, _varInfo: VariationInfo) -> vec2f {
     let r = sqrt(random());
     let theta = random() * 2 * PI;
     return r * vec2f(cos(theta), sin(theta));
@@ -19,7 +19,7 @@ export const randomDisk = simpleVariation(
 
 export const gaussian = simpleVariation(
   /* wgsl */ `
-  (pos: vec2f) -> vec2f {
+  (pos: vec2f, _varInfo: VariationInfo) -> vec2f {
     let r = random() + random() + random() + random() - 2;
     let theta = random() * 2 * PI;
     return r * vec2f(cos(theta), sin(theta));
@@ -28,7 +28,7 @@ export const gaussian = simpleVariation(
 )
 
 export const sinusoidal = simpleVariation(/* wgsl */ `
-  (pos: vec2f) -> vec2f {
+  (pos: vec2f, _varInfo: VariationInfo) -> vec2f {
     return vec2f(sin(pos.x), sin(pos.y));
   }`)
 
