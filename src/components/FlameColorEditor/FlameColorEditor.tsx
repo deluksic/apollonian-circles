@@ -15,7 +15,7 @@ import { createDragHandler } from '@/utils/createDragHandler'
 import { eventToClip } from '@/utils/eventToClip'
 import { vec2 } from 'wgpu-matrix'
 import { FlameFunction } from '@/flame/flameFunction'
-import { SetStoreFunction } from 'solid-js/store'
+import { produce, SetStoreFunction } from 'solid-js/store'
 import { maxLength2 } from '@/utils/clampLength'
 
 function Gradient() {
@@ -197,9 +197,17 @@ export function FlameColorEditor(props: {
                 {(flameFunction, i) => (
                   <FlameColorHandle
                     color={vec2f(flameFunction.color.x, flameFunction.color.y)}
-                    setColor={(color) =>
-                      props.setFlameFunctions(i(), 'color', color)
-                    }
+                    setColor={(color) => {
+                      props.setFlameFunctions(
+                        i(),
+                        produce((flameFunction) => {
+                          flameFunction.color = {
+                            x: color.x,
+                            y: color.y,
+                          }
+                        }),
+                      )
+                    }}
                   />
                 )}
               </For>
