@@ -349,7 +349,8 @@ function App(props: { flameFromQuery?: FlameFunction[] }) {
           <button
             class={ui.addFlameButton}
             onClick={async () => {
-              const url = `${window.location.origin}?flame=${await encodeJsonQueryParam(flameFunctions)}`
+              const encoded = await encodeJsonQueryParam(flameFunctions)
+              const url = `${window.location.origin}?flame=${encoded}`
               navigator.clipboard.writeText(url)
               await requestModal({
                 title: 'Flame URL copied to clipboard!',
@@ -388,7 +389,6 @@ export function Wrappers() {
   const [flameFromQuery] = createResource(async () => {
     const param = new URLSearchParams(window.location.search)
     const flameDef = param.get('flame')
-    console.log(flameDef)
     if (flameDef) {
       try {
         return await decodeJsonQueryParam(flameDef)

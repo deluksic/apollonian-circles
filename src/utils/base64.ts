@@ -6,7 +6,14 @@ for (let i = 0; i < chars.length; i++) {
   lookup[chars.charCodeAt(i)] = i
 }
 
-export function encodeBase64(bytes: Uint8Array): string {
+type EncodeBase64Options = {
+  pad?: string
+}
+
+export function encodeBase64(
+  bytes: Uint8Array,
+  { pad = '=' }: EncodeBase64Options = {},
+): string {
   let base64 = ''
 
   for (let i = 0; i < bytes.length; i += 3) {
@@ -20,16 +27,16 @@ export function encodeBase64(bytes: Uint8Array): string {
   }
 
   if (bytes.length % 3 === 2) {
-    base64 = base64.substring(0, base64.length - 1) + '='
+    base64 = base64.substring(0, base64.length - 1) + pad
   } else if (bytes.length % 3 === 1) {
-    base64 = base64.substring(0, base64.length - 2) + '=='
+    base64 = base64.substring(0, base64.length - 2) + pad + pad
   }
 
   return base64
 }
 
 export function decodeBase64(base64: string): Uint8Array {
-  let bufferLength = (base64.length * 3) >>> 2
+  let bufferLength = (base64.length * 3) / 4
 
   if (base64.at(-1) === '=') {
     bufferLength--

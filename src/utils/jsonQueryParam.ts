@@ -1,6 +1,8 @@
 import { decodeBase64, encodeBase64 } from './base64'
 import { sum } from './sum'
 
+const format: CompressionFormat = 'deflate'
+
 function concatBuffers(buffers: Uint8Array[]) {
   const totalLength = sum(buffers.map((b) => b.length))
   const result = new Uint8Array(totalLength)
@@ -14,7 +16,7 @@ function concatBuffers(buffers: Uint8Array[]) {
 
 export async function encodeJsonQueryParam(obj: unknown) {
   const encoder = new TextEncoderStream()
-  const compress = new CompressionStream('gzip')
+  const compress = new CompressionStream(format)
   encoder.readable.pipeTo(compress.writable)
   const writer = encoder.writable.getWriter()
   writer.write(JSON.stringify(obj))
@@ -23,11 +25,11 @@ export async function encodeJsonQueryParam(obj: unknown) {
   for await (const chunk of compress.readable) {
     chunks.push(chunk)
   }
-  return encodeBase64(concatBuffers(chunks))
+  return encodeBase64(concatBuffers(chunks), { pad: '' })
 }
 
 export async function decodeJsonQueryParam(param: string) {
-  const decompress = new DecompressionStream('gzip')
+  const decompress = new DecompressionStream(format)
   const decoder = new TextDecoderStream()
   decompress.readable.pipeTo(decoder.writable)
   const writer = decompress.writable.getWriter()
