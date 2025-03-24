@@ -1,0 +1,41 @@
+import { decodeBase64, encodeBase64 } from './base64'
+import { sum } from './sum'
+
+function concatBuffers(buffers: Uint8Array[]) {
+  const totalLength = sum(buffers.map((b) => b.length))
+  const result = new Uint8Array(totalLength)
+  let i = 0
+  for (const buffer of buffers) {
+    result.set(buffer, i)
+    i += buffer.length
+  }
+  return result
+}
+
+export async function encodeJsonQueryParam(obj: unknown) {
+  const encoder = new TextEncoderStream()
+  const compress = new CompressionStream('gzip')
+  encoder.readable.pipeTo(compress.writable)
+  const writer = encoder.writable.getWriter()
+  writer.write(JSON.stringify(obj))
+  writer.close()
+  const chunks = []
+  for await (const chunk of compress.readable) {
+    chunks.push(chunk)
+  }
+  return encodeBase64(concatBuffers(chunks))
+}
+
+export async function decodeJsonQueryParam(param: string) {
+  const decompress = new DecompressionStream('gzip')
+  const decoder = new TextDecoderStream()
+  decompress.readable.pipeTo(decoder.writable)
+  const writer = decompress.writable.getWriter()
+  writer.write(decodeBase64(param))
+  writer.close()
+  const chunks = []
+  for await (const chunk of decoder.readable) {
+    chunks.push(chunk)
+  }
+  return JSON.parse(chunks.join())
+}
