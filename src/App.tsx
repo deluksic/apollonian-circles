@@ -4,9 +4,12 @@ import { Root } from './lib/Root'
 import {
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   For,
   onCleanup,
+  Show,
+  Suspense,
 } from 'solid-js'
 import { WheelZoomCamera2D } from './lib/WheelZoomCamera2D'
 import {
@@ -28,8 +31,13 @@ import { sum } from './utils/sum'
 import { isVariationType } from '@/flame/variations'
 import { FlameColorEditor } from './components/FlameColorEditor/FlameColorEditor'
 import { AffineEditor } from './components/AffineEditor/AffineEditor'
+import {
+  decodeJsonQueryParam,
+  encodeJsonQueryParam,
+} from './utils/jsonQueryParam'
+import { FlameFunction } from './flame/flameFunction'
 
-function App() {
+function App(props: { flameFromQuery?: FlameFunction[] }) {
   const [pixelRatio, setPixelRatio] = createSignal(0.25)
   const [outerIters, setOuterIters] = createSignal(1)
   const [skipIters, setSkipIters] = createSignal(0)
@@ -40,7 +48,7 @@ function App() {
   const [adaptiveFilterEnabled, setAdaptiveFilterEnabled] = createSignal(true)
   const [showSidebar, setShowSidebar] = createSignal(true)
   const [flameFunctions, setFlameFunctions] = createStore(
-    structuredClone(examples.blobFlame),
+    structuredClone(props.flameFromQuery ?? examples.blobFlame),
   )
   const totalProbability = createMemo(() =>
     sum(flameFunctions.map((f) => f.probability)),
@@ -337,6 +345,24 @@ function App() {
             Export PNG
           </button>
         </Card>
+        <Card class={ui.addFlameCard}>
+          <button
+            class={ui.addFlameButton}
+            onClick={async () => {
+              const url = `${window.location.origin}?flame=${await encodeJsonQueryParam(flameFunctions)}`
+              navigator.clipboard.writeText(url)
+              await requestModal({
+                title: 'Flame URL copied to clipboard!',
+                message: url,
+                options: {
+                  ok: (props) => <button onClick={props.onClick}>OK</button>,
+                },
+              })
+            }}
+          >
+            Share Link
+          </button>
+        </Card>
       </div>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
         <AutoCanvas class={ui.canvas} pixelRatio={pixelRatio()}>
@@ -359,9 +385,26 @@ function App() {
 }
 
 export function Wrappers() {
+  const [flameFromQuery] = createResource(async () => {
+    const param = new URLSearchParams(window.location.search)
+    const flameDef = param.get('flame')
+    console.log(flameDef)
+    if (flameDef) {
+      try {
+        return await decodeJsonQueryParam(flameDef)
+      } catch (ex) {
+        console.error(ex)
+      }
+    }
+    return undefined
+  })
   return (
     <Modal>
-      <App />
+      <Suspense>
+        <Show when={flameFromQuery.state === 'ready'}>
+          <App flameFromQuery={flameFromQuery()} />
+        </Show>
+      </Suspense>
     </Modal>
   )
 }
