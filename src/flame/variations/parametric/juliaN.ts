@@ -10,7 +10,7 @@ export const JuliaNParams = struct({
 export const juliaN = parametricVariation(
   JuliaNParams,
   /* wgsl */ `
-  (pos: vec2f, P: JuliaNParams) -> vec2f {
+  (pos: vec2f, _varInfo: VariationInfo, P: JuliaNParams) -> vec2f {
     let p1 = P.power; 
     let p2 = P.dist; 
     let p3 = trunc(abs(p1) * random()); 

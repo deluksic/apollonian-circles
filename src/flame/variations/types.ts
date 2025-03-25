@@ -9,19 +9,22 @@ import {
   vec4u,
 } from 'typegpu/data'
 
+export type AffineParams = Infer<typeof AffineParams>
+// prettier-ignore
+export const AffineParams = struct({
+  a: f32, b: f32, c: f32,
+  d: f32, e: f32, f: f32
+})
+
 export type VariationInfoType = Infer<typeof VariationInfo>
 export const VariationInfo = struct({
   weight: f32,
+  affineCoefs: AffineParams,
 })
 
 export type SimpleVariation = {
   type: 'simple'
   fn: TgpuFn<[Vec2f, typeof VariationInfo], Vec2f>
-}
-
-export type DependentVariation = {
-  type: 'dependent'
-  fn: TgpuFn<[Vec2f, typeof VariationInfo, typeof AffineParams], Vec2f>
 }
 
 export type ParametricVariation<T extends AnyWgslData> = {
@@ -37,17 +40,6 @@ export const simpleVariation = (
   type: 'simple',
   fn: tgpu['~unstable']
     .fn([vec2f, VariationInfo], vec2f)
-    .does(wgsl)
-    .$uses(dependencyMap),
-})
-
-export const dependentVariation = (
-  wgsl: string,
-  dependencyMap: Record<string, unknown> = {},
-): DependentVariation => ({
-  type: 'dependent',
-  fn: tgpu['~unstable']
-    .fn([vec2f, VariationInfo, AffineParams], vec2f)
     .does(wgsl)
     .$uses(dependencyMap),
 })
@@ -73,13 +65,6 @@ export const Point = struct({
 })
 
 export const outputTextureFormat = 'rgba32float'
-
-export type AffineParams = Infer<typeof AffineParams>
-// prettier-ignore
-export const AffineParams = struct({
-  a: f32, b: f32, c: f32,
-  d: f32, e: f32, f: f32
-})
 
 export const transformAffine = tgpu['~unstable'].fn(
   [AffineParams, vec2f],

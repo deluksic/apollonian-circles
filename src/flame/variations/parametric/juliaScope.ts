@@ -10,7 +10,7 @@ export const JuliaScopeParams = struct({
 export const juliaScope = parametricVariation(
   JuliaScopeParams,
   /* wgsl */ `
-  (pos: vec2f, P: JuliaScopeParams) -> vec2f {
+  (pos: vec2f, _varInfo: VariationInfo, P: JuliaScopeParams) -> vec2f {
     let p1 = P.power; 
     let p2 = P.dist; 
     let p3 = trunc(abs(p1) * random()); 

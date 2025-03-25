@@ -7,7 +7,7 @@ export const RingsParams = struct({
 export const rings2 = parametricVariation(
   RingsParams,
   /* wgsl */ `
-  (pos: vec2f, P: RingsParams) -> vec2f {
+  (pos: vec2f, _varInfo: VariationInfo, P: RingsParams) -> vec2f {
     let p = P.val; 
     let r = length(pos); 
     let theta = atan2(pos.y, pos.x);

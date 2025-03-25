@@ -8,7 +8,7 @@ export const PerspectiveParams = struct({
 export const perspective = parametricVariation(
   PerspectiveParams,
   /* wgsl */ `
-  (pos: vec2f, P: PerspectiveParams) -> vec2f {
+  (pos: vec2f, _varInfo: VariationInfo, P: PerspectiveParams) -> vec2f {
     let p1 = P.angle; 
     let p2 = P.dist; 
     let factor = p2 / (p2 - pos.y * sin(p1));

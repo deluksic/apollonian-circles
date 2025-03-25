@@ -46,11 +46,9 @@ function variationUniforms(name: TransformVariation) {
 function variationInvocation(name: TransformVariation, j: number) {
   switch (transformVariations[name].type) {
     case 'simple':
-      return `${name}(pre, VariationInfo(uniforms.variation${j}.weight))`
-    case 'dependent':
-      return `${name}(pre, VariationInfo(uniforms.variation${j}.weight), uniforms.preAffine)`
+      return `${name}(pre, VariationInfo(uniforms.variation${j}.weight, uniforms.preAffine))`
     case 'parametric':
-      return `${name}(pre, VariationInfo(uniforms.variation${j}.weight), uniforms.variation${j}.params)`
+      return `${name}(pre, VariationInfo(uniforms.variation${j}.weight, uniforms.preAffine), uniforms.variation${j}.params)`
   }
 }
 
