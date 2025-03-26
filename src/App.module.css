@@ -40,11 +40,14 @@
 }
 
 .var-input-type {
-  max-width: 4px;
+  margin-left: 6px;
+  max-width: 76px;
   width: 70%;
-  border-radius: 8px;
+  border-radius: 4px;
 }
-
+.load-image-type {
+  padding: 1rem;
+}
 .add-flame-card.add-flame-card {
   display: flex;
   padding: 0;

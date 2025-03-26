@@ -32,10 +32,12 @@ import { isVariationType } from '@/flame/variations'
 import { FlameColorEditor } from './components/FlameColorEditor/FlameColorEditor'
 import { AffineEditor } from './components/AffineEditor/AffineEditor'
 import {
+  compressJsonQueryParam,
   decodeJsonQueryParam,
   encodeJsonQueryParam,
 } from './utils/jsonQueryParam'
 import { FlameFunction } from './flame/flameFunction'
+import { addFlameDataToPng, extractFlameFromPng } from './utils/pngUtil'
 
 function App(props: { flameFromQuery?: FlameFunction[] }) {
   const [pixelRatio, setPixelRatio] = createSignal(1)
@@ -48,7 +50,7 @@ function App(props: { flameFromQuery?: FlameFunction[] }) {
   const [adaptiveFilterEnabled, setAdaptiveFilterEnabled] = createSignal(true)
   const [showSidebar, setShowSidebar] = createSignal(true)
   const [flameFunctions, setFlameFunctions] = createStore(
-    structuredClone(props.flameFromQuery ?? examples.blobFlame),
+    structuredClone(props.flameFromQuery ?? examples.example1),
   )
   const totalProbability = createMemo(() =>
     sum(flameFunctions.map((f) => f.probability)),
@@ -264,7 +266,7 @@ function App(props: { flameFromQuery?: FlameFunction[] }) {
                       {' '}
                       Weight
                       <input
-                        class="var-input-type"
+                        class={ui.varInputType}
                         type="text"
                         width="40px"
                         value={variation.type}
@@ -335,11 +337,19 @@ function App(props: { flameFromQuery?: FlameFunction[] }) {
               if (!(canvas instanceof HTMLCanvasElement)) {
                 return
               }
-              const fileURL = canvas.toDataURL()
-              const downloadLink = document.createElement('a')
-              downloadLink.href = fileURL
-              downloadLink.download = 'flame.png'
-              downloadLink.click()
+              canvas.toBlob(async (blob) => {
+                if (!blob) return
+                const imgData = await blob.arrayBuffer()
+                const pngBytes = new Uint8Array(imgData)
+                const encodedFlames =
+                  await compressJsonQueryParam(flameFunctions)
+                const imgExtData = addFlameDataToPng(encodedFlames, pngBytes)
+                const fileUrlExt = URL.createObjectURL(imgExtData)
+                const downloadLink = document.createElement('a')
+                downloadLink.href = fileUrlExt
+                downloadLink.download = 'flame.png'
+                downloadLink.click()
+              })
             }}
           >
             Export PNG
@@ -363,6 +373,43 @@ function App(props: { flameFromQuery?: FlameFunction[] }) {
           >
             Share Link
           </button>
+        </Card>
+        <Card class={ui.addFlameCard}>
+          <input
+            class={ui.loadImageType}
+            type="file"
+            accept="image/png"
+            onChange={async (ev) => {
+              const file = ev.target.files?.item(0)
+              if (file && file.type == 'image/png') {
+                const reader = new FileReader()
+                reader.onload = async (e) => {
+                  const fr = e.target
+                  const arrBuf = new Uint8Array(fr?.result as ArrayBuffer)
+                  if (!arrBuf) {
+                    console.warn('Please upload valid file!')
+                  } else {
+                    const flameFunctions = await extractFlameFromPng(arrBuf)
+                    if (flameFunctions !== undefined) {
+                      setFlameFunctions(structuredClone(flameFunctions))
+                    } else {
+                      console.warn(
+                        'The file is invalid or does not contain proper metadata!',
+                      )
+                    }
+                  }
+                }
+                reader.onerror = function () {
+                  console.warn(reader.error)
+                }
+                reader.readAsArrayBuffer(file)
+                // reset target value so same file can be reuploaded
+                ev.target.value = ''
+              }
+            }}
+          >
+            Load PNG
+          </input>
         </Card>
       </div>
       <Root adapterOptions={{ powerPreference: 'high-performance' }}>
